@@ -1,0 +1,210 @@
+/* ReviewForm.css */
+.review-form-container {
+  background: white;
+  border-radius: 12px;
+  padding: 30px;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.1);
+  max-width: 600px;
+  margin: 0 auto;
+}
+
+.review-form-header {
+  text-align: center;
+  margin-bottom: 30px;
+}
+
+.review-form-header h2 {
+  font-size: 24px;
+  color: #333;
+  margin-bottom: 10px;
+}
+
+.review-form-header p {
+  font-size: 16px;
+  color: #666;
+  margin: 0;
+}
+
+.review-form {
+  display: flex;
+  flex-direction: column;
+  gap: 25px;
+}
+
+.form-section {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.form-label {
+  font-size: 16px;
+  font-weight: 600;
+  color: #333;
+}
+
+.required {
+  color: #E53E3E;
+}
+
+/* Рейтинг звездами */
+.star-rating {
+  display: flex;
+  gap: 8px;
+  justify-content: center;
+  padding: 15px 0;
+}
+
+.star {
+  background: none;
+  border: none;
+  font-size: 36px;
+  cursor: pointer;
+  transition: transform 0.2s;
+  padding: 5px;
+}
+
+.star:hover,
+.star.active {
+  transform: scale(1.2);
+}
+
+.star:not(.active) {
+  opacity: 0.3;
+}
+
+.rating-text {
+  text-align: center;
+  font-size: 18px;
+  font-weight: 600;
+  color: #6B46C1;
+  margin: 10px 0 0 0;
+}
+
+/* Текстовое поле отзыва */
+.review-textarea {
+  width: 100%;
+  padding: 15px;
+  border: 2px solid #E0E0E0;
+  border-radius: 8px;
+  font-size: 15px;
+  font-family: inherit;
+  line-height: 1.6;
+  resize: vertical;
+  transition: border-color 0.3s;
+}
+
+.review-textarea:focus {
+  outline: none;
+  border-color: #6B46C1;
+}
+
+.character-count {
+  text-align: right;
+  font-size: 13px;
+  color: #999;
+}
+
+.character-count .hint {
+  color: #E53E3E;
+  font-weight: 600;
+}
+
+/* Сообщение об ошибке */
+.error-message {
+  background: #FED7D7;
+  color: #C53030;
+  padding: 12px 16px;
+  border-radius: 8px;
+  font-size: 14px;
+  border-left: 4px solid #E53E3E;
+}
+
+/* Информационный блок */
+.info-block {
+  background: #F0E6FF;
+  border-left: 4px solid #6B46C1;
+  padding: 15px;
+  border-radius: 8px;
+}
+
+.info-block p {
+  margin: 0;
+  font-size: 14px;
+  line-height: 1.6;
+  color: #333;
+}
+
+/* Кнопки */
+.form-buttons {
+  display: flex;
+  gap: 15px;
+  margin-top: 10px;
+}
+
+.submit-button,
+.cancel-button {
+  flex: 1;
+  padding: 14px 24px;
+  border: none;
+  border-radius: 8px;
+  font-size: 16px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.3s;
+}
+
+.submit-button {
+  background: #6B46C1;
+  color: white;
+}
+
+.submit-button:hover:not(:disabled) {
+  background: #5A38A3;
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(107, 70, 193, 0.3);
+}
+
+.submit-button:disabled {
+  background: #CCC;
+  cursor: not-allowed;
+  opacity: 0.6;
+}
+
+.cancel-button {
+  background: #F5F5F5;
+  color: #666;
+}
+
+.cancel-button:hover:not(:disabled) {
+  background: #E0E0E0;
+}
+
+.cancel-button:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+/* Адаптация для мобильных */
+@media (max-width: 600px) {
+  .review-form-container {
+    padding: 20px;
+  }
+
+  .review-form-header h2 {
+    font-size: 20px;
+  }
+
+  .star {
+    font-size: 28px;
+  }
+
+  .form-buttons {
+    flex-direction: column;
+  }
+
+  .submit-button,
+  .cancel-button {
+    width: 100%;
+  }
+}
