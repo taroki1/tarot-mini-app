@@ -69,7 +69,7 @@ app.get('/api/tarot-readers', async (req, res) => {
   try {
     // Запрашиваем из базы всех активных тарологов с их статистикой
     const query = `
-      SELECT 
+      SELECT
         tr.*,
         COUNT(DISTINCT c.id) as total_consultations,
         AVG(r.rating) as average_rating,
@@ -79,7 +79,7 @@ app.get('/api/tarot-readers', async (req, res) => {
       LEFT JOIN reviews r ON c.id = r.consultation_id
       WHERE tr.is_active = true
       GROUP BY tr.id
-      ORDER BY tr.is_featured DESC, average_rating DESC NULLS LAST
+      ORDER BY tr.is_featured DESC, AVG(r.rating) DESC NULLS LAST
     `;
     
     const result = await pool.query(query);
