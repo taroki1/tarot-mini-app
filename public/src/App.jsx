@@ -1,236 +1,302 @@
-// public/src/App.jsx
-// Главный компонент нашего приложения - это как каркас здания
-import React, { useState, useEffect } from 'react';
-import './App.css';
+import React, { useState } from 'react';
 
-// Компоненты для разных страниц приложения
-import TarotReadersList from './components/TarotReadersList';
-import TarotReaderProfile from './components/TarotReaderProfile';
-import AdminPanel from './components/AdminPanel';
-import BlogSection from './components/BlogSection';
-import PromoBanner from './components/PromoBanner';
+const INTENSIVE_LINK = "https://web.academy-lykova.ru/taro_intensive_cold";
+const CHANNEL_LINK = "https://t.me/lykova_taro";
 
-// Главный компонент приложения
-function App() {
-  // State - это память нашего приложения, здесь мы храним текущее состояние
-  const [currentPage, setCurrentPage] = useState('home');
-  const [selectedTarotReader, setSelectedTarotReader] = useState(null);
-  const [userData, setUserData] = useState(null);
-  const [isAdmin, setIsAdmin] = useState(false);
-  const [promoBanners, setPromoBanners] = useState([]);
-  
-  // useEffect - это код, который выполняется при загрузке приложения
-  useEffect(() => {
-    // Инициализация Telegram Web App
-    if (window.Telegram?.WebApp) {
-      const tg = window.Telegram.WebApp;
-      
-      // Расширяем приложение на весь экран
-      tg.expand();
-      
-      // Настраиваем цвета интерфейса под тему Telegram
-      tg.setHeaderColor('#6B46C1'); // Фиолетовый цвет для шапки
-      tg.setBackgroundColor('#F7F4FF'); // Светлый фон
-      
-      // Получаем данные пользователя из Telegram
-      const user = tg.initDataUnsafe?.user;
-      if (user) {
-        setUserData({
-          id: user.id,
-          firstName: user.first_name,
-          lastName: user.last_name,
-          username: user.username
-        });
-        
-        // Проверяем, является ли пользователь администратором
-        checkAdminStatus(user.id);
-      }
-      
-      // Настраиваем кнопку "Назад" в Telegram
-      tg.BackButton.onClick(() => handleBackButton());
-    }
-    
-    // Загружаем промо-баннеры
-    loadPromoBanners();
-  }, []);
-  
-  // Функция для проверки админских прав
-  const checkAdminStatus = async (telegramId) => {
-    try {
-      // В реальном приложении здесь будет проверка через API
-      // Для демо просто проверяем ID
-      const adminIds = [123456789]; // Замените на реальные ID админов
-      setIsAdmin(adminIds.includes(telegramId));
-    } catch (error) {
-      console.error('Ошибка при проверке статуса админа:', error);
-    }
+const LESSONS = [
+  { day: 1, title: "Как правильно задать вопрос картам", emoji: "❓",
+    content: "Дорогая душа, добро пожаловать в волшебный мир Таро! ✨\n\nПервое и самое важное — научиться правильно формулировать вопросы.\n\n❌ Как НЕ надо:\n• «Да или нет?» — карты не отвечают односложно\n• «Когда я выйду замуж?» — Таро не предсказывает даты\n\n✅ Как правильно:\n• «Какие шаги помогут улучшить отношения?»\n• «Что мне важно понять в этой ситуации?»\n\n🔮 Таро — это мудрый советчик. Карты показывают энергии, тенденции, пути развития.\n\n💫 Практика: Сформулируйте вопрос со словами «как», «что», «какой путь».",
+    cta: "На интенсиве мы разбираем технику вопросов с практикой →" },
+  { day: 2, title: "Структура колоды — 78 ключей", emoji: "🗝️",
+    content: "Сегодня откроем карту мира Таро! 🗺️\n\n👑 22 Старших Аркана — путь души:\nШут (0) → Мир (21) — от невинности к мудрости\n\n🎴 56 Младших Арканов — 4 стихии:\n\n🔥 Жезлы (Огонь) — творчество, энергия, карьера\n💧 Кубки (Вода) — эмоции, любовь, интуиция\n⚔️ Мечи (Воздух) — разум, общение, решения\n💰 Пентакли (Земля) — деньги, работа, здоровье\n\n💫 Когда много карт одной масти — эта сфера в фокусе!",
+    cta: "Хотите видеть связи между картами? На интенсиве практикуем! →" },
+  { day: 3, title: "Символы Таро — тайный язык", emoji: "🔍",
+    content: "Сегодня станем детективами! 🕵️‍♀️\n\n🏔️ Горы — испытания и достижения\n💧 Вода — эмоции, подсознание\n🌹 Розы — любовь и осторожность\n🦁 Лев — сила, мужество\n🐕 Собака — верность, защита\n∞ Бесконечность — безграничный потенциал\n\n🎨 Цвета:\n• Красный — страсть, энергия\n• Синий — духовность, мудрость\n• Жёлтый — интеллект, радость\n\n💫 Практика: Найдите 5 символов на любой карте!",
+    cta: "На интенсиве разбираем символику каждой карты →" },
+  { day: 4, title: "Придворные карты — 16 персонажей", emoji: "👑",
+    content: "Знакомимся с «людьми» колоды! 👥\n\n🌱 Пажи — молодая энергия, новости, ученик\n🐎 Рыцари — действие, движение, крайности\n👸 Королевы — зрелая женская энергия\n👑 Короли — зрелая мужская энергия, власть\n\n🤔 Человек или качество?\n• Спрашивали о человеке → это он\n• Спрашивали о ситуации → это качества\n\n💫 Придворные — самые сложные для новичков. Не расстраивайтесь!",
+    cta: "На интенсиве разбираем каждого персонажа с примерами →" },
+  { day: 5, title: "Дневник Таро — путь к мастерству", emoji: "📔",
+    content: "Секрет всех профессионалов! 🤫\n\n📝 Что записывать:\n\nУтром:\n• Дата, вопрос на день\n• Какая карта, первое впечатление\n\nВечером:\n• Как проявилась энергия карты?\n• Какие события резонировали?\n\n📊 Через месяц увидите:\n• Какие карты приходят чаще\n• Паттерны в жизни\n• Развитие интуиции\n\n💫 Начните сегодня!",
+    cta: "На интенсиве показываю свой дневник с примерами →" },
+  { day: 6, title: "Ваш первый расклад — триплет", emoji: "🎴",
+    content: "Большой день — первый расклад! 🎉\n\n🃏 Схема:\n[1] Прошлое → [2] Настоящее → [3] Будущее\n\n📋 Как делать:\n1. Сформулируйте вопрос\n2. Перемешайте, думая о вопросе\n3. Вытяните 3 карты\n4. Открывайте слева направо\n\n⚠️ Важно: Читайте карты ВМЕСТЕ, как предложение!\n\n💫 Пример:\n[Двойка Кубков] — [Отшельник] — [Солнце]\n= Партнёрство → время для себя → радость",
+    cta: "Хотите расклады из 5, 7, 10 карт? На интенсиве практикуем →" },
+  { day: 7, title: "Ваш путь — что дальше?", emoji: "🌟",
+    content: "Поздравляю! Вы прошли 7 дней! 🎉\n\n✅ Что вы теперь умеете:\n• Правильно формулировать вопросы\n• Понимаете структуру колоды\n• Знаете 4 стихии\n• Читаете символы\n• Понимаете придворные карты\n• Ведёте дневник\n• Делаете триплет\n\n🤔 Но это только начало...\n\nЗа 7 дней невозможно изучить все 78 карт глубоко, сочетания, сложные расклады...\n\n🎁 Приглашаю на бесплатный интенсив!\n• Все 78 карт с примерами\n• Живые расклады с разбором\n• Ответы на ваши вопросы\n\nЯ буду рада видеть вас! ✨",
+    cta: "Записывайтесь на интенсив — следующий шаг к мастерству! 🔮" }
+];
+
+const CARDS = [
+  { id: 0, name: "Шут", emoji: "🎭", keywords: ["начало", "спонтанность", "вера"],
+    day_message: "🎭 ШУТ — ваша карта дня!\n\nДорогая душа, сегодня Вселенная дарит вам нулевой аркан — чистый потенциал! ✨\n\nПосмотрите на Шута: он на краю обрыва, но не боится. В руках узелок с минимумом вещей, в сердце — максимум веры.\n\n💼 В работе: День для смелых решений! Пора начать проект, который откладывали.\n\n💕 В отношениях: Лёгкость! Не усложняйте. Вспомните первую лёгкость ваших отношений.\n\n🌟 Совет дня: Доверьтесь потоку! Сделайте шаг в неизвестность.\n\n✨ Каждый мастер когда-то был учеником." },
+  { id: 1, name: "Маг", emoji: "🎩", keywords: ["воля", "мастерство", "ресурсы"],
+    day_message: "🎩 МАГ — ваша карта дня!\n\nКакая мощная карта! Сегодня вы — творец реальности! ✨\n\nНад головой Мага знак бесконечности. На столе все 4 стихии. У вас есть ВСЁ!\n\n💼 В работе: День реализации! Всё, что нужно — уже есть. Начинайте!\n\n💕 В отношениях: Проявите инициативу. Маг не ждёт — действует!\n\n🌟 Совет дня: Соедините мечту с действием.\n\n✨ «Как вверху, так и внизу» — мысль становится реальностью." },
+  { id: 2, name: "Верховная Жрица", emoji: "🌙", keywords: ["интуиция", "тайна", "мудрость"],
+    day_message: "🌙 ВЕРХОВНАЯ ЖРИЦА — ваша карта дня!\n\nТссс... Сегодня день тишины и внутреннего знания. 🤫✨\n\nЖрица сидит между чёрной и белой колонн. Не всё должно быть сказано вслух.\n\n💼 В работе: Не торопитесь с решениями! Сегодня — сбор информации.\n\n💕 В отношениях: Есть невысказанное. День для наблюдения.\n\n🌟 Совет дня: Доверяйте интуиции! Записывайте сны.\n\n✨ Иногда молчание говорит больше слов." },
+  { id: 3, name: "Императрица", emoji: "👑", keywords: ["изобилие", "творчество", "красота"],
+    day_message: "👑 ИМПЕРАТРИЦА — ваша карта дня!\n\nБогиня плодородия! Сегодня всё расцветает! 🌸✨\n\n💼 В работе: Творческий подъём! Идеи приходят легко.\n\n💕 В отношениях: Любовь расцветает! Время для романтики.\n\n🌟 Совет дня: Позвольте себе удовольствия!\n\n✨ Вы — со-творец Вселенной. Творите красоту!" },
+  { id: 4, name: "Император", emoji: "🏰", keywords: ["власть", "структура", "защита"],
+    day_message: "🏰 ИМПЕРАТОР — ваша карта дня!\n\nВластелин порядка! День структуры и контроля. 👑✨\n\n💼 В работе: Возьмите контроль! Составьте список, расставьте приоритеты.\n\n💕 В отношениях: Вопрос границ. Установите их или пересмотрите.\n\n🌟 Совет дня: Создайте порядок из хаоса!\n\n✨ Настоящая власть — это ответственность." },
+  { id: 5, name: "Иерофант", emoji: "📿", keywords: ["традиция", "учение", "наставник"],
+    day_message: "📿 ИЕРОФАНТ — ваша карта дня!\n\nВерховный жрец открывает двери к знаниям! 🙏✨\n\n💼 В работе: Обратитесь к наставнику! Курсы, менторы, книги.\n\n💕 В отношениях: Традиции важны.\n\n🌟 Совет дня: Следуйте проверенному пути!\n\n✨ Мудрость — опыт поколений." },
+  { id: 6, name: "Влюблённые", emoji: "💕", keywords: ["выбор", "союз", "любовь"],
+    day_message: "💕 ВЛЮБЛЁННЫЕ — ваша карта дня!\n\nСвященный союз! День любви и важных выборов! ❤️✨\n\n💼 В работе: Важное решение! Слушайте сердце.\n\n💕 В отношениях: Глубокая связь! Возможна судьбоносная встреча.\n\n🌟 Совет дня: Слушайте сердце!\n\n✨ Когда выбираете сердцем — Вселенная благословляет." },
+  { id: 7, name: "Колесница", emoji: "⚔️", keywords: ["победа", "воля", "движение"],
+    day_message: "⚔️ КОЛЕСНИЦА — ваша карта дня!\n\nТриумф воли! Сегодня вы — победитель! 🏆✨\n\n💼 В работе: Победа через упорство! Держите курс.\n\n💕 В отношениях: Движение вперёд! Новый этап.\n\n🌟 Совет дня: Держите курс!\n\n✨ Настоящая победа — победа над собой." },
+  { id: 9, name: "Отшельник", emoji: "🏔️", keywords: ["мудрость", "поиск", "одиночество"],
+    day_message: "🏔️ ОТШЕЛЬНИК — ваша карта дня!\n\nИскатель истины! День внутренней работы. 🔦✨\n\n💼 В работе: Время для анализа! Туда ли вы идёте?\n\n💕 В отношениях: Побудьте наедине с собой.\n\n🌟 Совет дня: Ответы внутри!\n\n✨ «Я ищу того, кто зажёг фонарь» — это вы сами." },
+  { id: 10, name: "Колесо Фортуны", emoji: "🎡", keywords: ["судьба", "перемены", "цикл"],
+    day_message: "🎡 КОЛЕСО ФОРТУНЫ — ваша карта дня!\n\nКолесо крутится! Перемены неизбежны! 🍀✨\n\n💼 В работе: Удачный поворот! Если застряли — сдвинется.\n\n💕 В отношениях: Новый цикл! Возможна «случайная» встреча.\n\n🌟 Совет дня: Примите перемены!\n\n✨ Сегодня внизу — завтра наверху." },
+  { id: 14, name: "Умеренность", emoji: "🌈", keywords: ["баланс", "гармония", "терпение"],
+    day_message: "🌈 УМЕРЕННОСТЬ — ваша карта дня!\n\nАлхимия баланса! День гармонии! ⚖️✨\n\n💼 В работе: Баланс во всём! «И то, и другое» вместо «или-или».\n\n💕 В отношениях: Гармония! Золотая середина.\n\n🌟 Совет дня: Найдите середину!\n\n✨ Середина — точка силы." },
+  { id: 15, name: "Дьявол", emoji: "⛓️", keywords: ["зависимость", "тень", "иллюзия"],
+    day_message: "⛓️ ДЬЯВОЛ — ваша карта дня!\n\nКарта ОСОЗНАНИЯ зависимостей! 🔓✨\n\nЦепи свободные! Они могут уйти — но не делают.\n\n💼 В работе: От чего вы зависите?\n\n💕 В отношениях: Созависимость?\n\n🌟 Совет дня: Освободитесь! Клетка открыта.\n\n✨ Дьявол показывает тьму — чтобы вы выбрали свет." },
+  { id: 16, name: "Башня", emoji: "⚡", keywords: ["разрушение", "прозрение", "кризис"],
+    day_message: "⚡ БАШНЯ — ваша карта дня!\n\nКрушение иллюзий! Молния правды! 🌩️✨\n\n💼 В работе: Неожиданные перемены! Правда лучше иллюзий.\n\n💕 В отношениях: Правда выходит. Начало честности.\n\n🌟 Совет дня: Примите разрушение!\n\n✨ Из пепла Феникс возрождается сильнее." },
+  { id: 17, name: "Звезда", emoji: "⭐", keywords: ["надежда", "исцеление", "вдохновение"],
+    day_message: "⭐ ЗВЕЗДА — ваша карта дня!\n\nИсцеление после бури! Надежда светит! 🌟✨\n\n💼 В работе: Вдохновение возвращается! Верьте в себя!\n\n💕 В отношениях: Исцеление! Возвращается вера.\n\n🌟 Совет дня: Верьте в лучшее!\n\n✨ После каждой бури выходят звёзды." },
+  { id: 18, name: "Луна", emoji: "🌙", keywords: ["иллюзия", "подсознание", "страхи"],
+    day_message: "🌙 ЛУНА — ваша карта дня!\n\nНе всё так, как кажется! 🌊✨\n\n💼 В работе: Не принимайте важных решений! Много скрытого.\n\n💕 В отношениях: Скрытые чувства! Страхи создают иллюзии?\n\n🌟 Совет дня: Интуиция да, но проверяйте факты!\n\n✨ Во тьме рождается интуиция." },
+  { id: 21, name: "Мир", emoji: "🌍", keywords: ["завершение", "достижение", "гармония"],
+    day_message: "🌍 МИР — ваша карта дня!\n\nЗавершение цикла! Вершина достигнута! 🎉✨\n\n💼 В работе: Завершение проекта! Вы победили.\n\n💕 В отношениях: Полнота! Глубокое единство.\n\n🌟 Совет дня: Празднуйте! Танцуйте!\n\n✨ Вы — целая Вселенная в танце с собой." },
+  { id: 22, name: "Туз Жезлов", emoji: "🔥", keywords: ["энергия", "вдохновение", "начало"], day_message: "🔥 ТУЗ ЖЕЗЛОВ! Искра творческого огня! ⚡✨\n\n💼 В работе: Новая возможность! Хватайтесь!\n💕 В отношениях: Вспышка страсти!\n\n🌟 Совет: Хватайтесь за шанс!" },
+  { id: 27, name: "6 Жезлов", emoji: "🏆", keywords: ["победа", "признание", "триумф"], day_message: "🏆 6 ЖЕЗЛОВ! Триумф! 🎖️✨\n\n💼 В работе: Признание! Повышение!\n💕 В отношениях: Вы — звезда!\n\n🌟 Совет: Примите славу! Вы заслужили." },
+  { id: 36, name: "Туз Кубков", emoji: "💧", keywords: ["любовь", "эмоции", "дар"], day_message: "💧 ТУЗ КУБКОВ! Дар любви! 💝✨\n\n💼 В работе: Творческий проект!\n💕 В отношениях: Новая любовь!\n\n🌟 Совет: Откройте сердце!" },
+  { id: 37, name: "2 Кубков", emoji: "💑", keywords: ["партнёрство", "связь", "взаимность"], day_message: "💑 2 КУБКОВ! Священный союз! 🤝✨\n\n💼 В работе: Партнёрство!\n💕 В отношениях: Встреча «своего» человека.\n\n🌟 Совет: Цените взаимность!" },
+  { id: 45, name: "10 Кубков", emoji: "🌈", keywords: ["счастье", "семья", "гармония"], day_message: "🌈 10 КУБКОВ! Полное счастье! 👨‍👩‍👧‍👦✨\n\n💼 В работе: Команда как семья.\n💕 В отношениях: Семейное счастье!\n\n🌟 Совет: Благодарите за то, что имеете." },
+  { id: 50, name: "Туз Мечей", emoji: "⚔️", keywords: ["ясность", "истина", "прорыв"], day_message: "⚔️ ТУЗ МЕЧЕЙ! Меч истины! 💡✨\n\n💼 В работе: Ясность мысли!\n💕 В отношениях: Честный разговор!\n\n🌟 Совет: Рассеките иллюзии!" },
+  { id: 64, name: "Туз Пентаклей", emoji: "💰", keywords: ["возможность", "материя", "дар"], day_message: "💰 ТУЗ ПЕНТАКЛЕЙ! Финансовая возможность! 🌱✨\n\n💼 В работе: Новая возможность!\n💕 В отношениях: Материальная стабильность.\n\n🌟 Совет: Хватайтесь!" },
+  { id: 72, name: "9 Пентаклей", emoji: "🦚", keywords: ["независимость", "изобилие", "успех"], day_message: "🦚 9 ПЕНТАКЛЕЙ! Самодостаточность! 🍇✨\n\n💼 В работе: Вы сами себе хозяин.\n💕 В отношениях: Вы «выбираете», а не «нуждаетесь».\n\n🌟 Совет: Наслаждайтесь плодами труда!" },
+];
+
+const WEEKLY_SYMBOLS = [
+  { week: 1, symbol: "Вода", emoji: "💧", title: "Символ недели: ВОДА",
+    content: "Вода в Таро — это эмоции, интуиция, подсознание.\n\n🌊 Где искать воду:\n• Реки, озёра, моря на картах\n• Кубки наполнены водой\n• Дождь, слёзы, водопады\n\n💧 Что означает:\n• Спокойная вода — мир в душе\n• Бурная вода — эмоциональные потрясения\n• Глубокая вода — подсознание\n\n🔮 Практика: Найдите воду на 5 картах!" },
+  { week: 2, symbol: "Горы", emoji: "🏔️", title: "Символ недели: ГОРЫ",
+    content: "Горы — испытания, достижения, духовный путь.\n\n⛰️ Значения:\n• Далёкие горы — будущие цели\n• Человек на горе — достижение\n• Крутой подъём — трудности\n\n🎯 В раскладе:\n• Горы позади — испытания пройдены\n• Горы впереди — путь предстоит\n\n🔮 Практика: Сравните горы на Отшельнике и Шуте!" },
+];
+
+function TarotApp() {
+  const [screen, setScreen] = useState('welcome');
+  const [streak, setStreak] = useState(0);
+  const [totalCards, setTotalCards] = useState(0);
+  const [currentCard, setCurrentCard] = useState(null);
+  const [lessonDay, setLessonDay] = useState(1);
+  const [weeklyUnlocked, setWeeklyUnlocked] = useState(false);
+  const [flipping, setFlipping] = useState(false);
+
+  const getDailyCard = () => {
+    setFlipping(true);
+    setTimeout(() => {
+      const randomCard = CARDS[Math.floor(Math.random() * CARDS.length)];
+      const newStreak = streak + 1;
+      setStreak(newStreak);
+      setTotalCards(totalCards + 1);
+      setCurrentCard(randomCard);
+      if (newStreak >= 7) setWeeklyUnlocked(true);
+      setFlipping(false);
+      setScreen('card');
+    }, 800);
   };
-  
-  // Загрузка промо-баннеров с сервера
-  const loadPromoBanners = async () => {
-    try {
-      const response = await fetch('/api/promo-banners');
-      const banners = await response.json();
-      setPromoBanners(banners);
-    } catch (error) {
-      console.error('Ошибка при загрузке баннеров:', error);
-    }
-  };
-  
-  // Обработка кнопки "Назад"
-  const handleBackButton = () => {
-    if (currentPage === 'tarot-reader-profile') {
-      setCurrentPage('home');
-      setSelectedTarotReader(null);
-    } else if (currentPage === 'blog') {
-      setCurrentPage('home');
-    }
-    
-    // Скрываем кнопку "Назад" на главной странице
-    if (window.Telegram?.WebApp) {
-      const tg = window.Telegram.WebApp;
-      if (currentPage === 'home') {
-        tg.BackButton.hide();
-      }
-    }
-  };
-  
-  // Функция для перехода на страницу профиля таролога
-  const openTarotReaderProfile = (tarotReader) => {
-    setSelectedTarotReader(tarotReader);
-    setCurrentPage('tarot-reader-profile');
-    
-    // Показываем кнопку "Назад" в Telegram
-    if (window.Telegram?.WebApp) {
-      window.Telegram.WebApp.BackButton.show();
-    }
-  };
-  
-  // Рендерим разный контент в зависимости от текущей страницы
-  const renderContent = () => {
-    switch (currentPage) {
-      case 'home':
-        return (
-          <>
-            {/* Промо-баннер вверху страницы */}
-            {promoBanners.length > 0 && (
-              <PromoBanner banner={promoBanners[0]} />
-            )}
-            
-            {/* Навигационные вкладки */}
-            <div className="navigation-tabs">
-              <button 
-                className="tab-button active"
-                onClick={() => setCurrentPage('home')}
-              >
-                🔮 Тарологи
-              </button>
-              <button 
-                className="tab-button"
-                onClick={() => setCurrentPage('blog')}
-              >
-                📚 Блог
-              </button>
-              {isAdmin && (
-                <button 
-                  className="tab-button"
-                  onClick={() => setCurrentPage('admin')}
-                >
-                  ⚙️ Админ
-                </button>
-              )}
-            </div>
-            
-            {/* Список тарологов */}
-            <TarotReadersList 
-              onSelectTarotReader={openTarotReaderProfile}
-              userData={userData}
-            />
-          </>
-        );
-        
-      case 'tarot-reader-profile':
-        return (
-          <TarotReaderProfile 
-            tarotReader={selectedTarotReader}
-            userData={userData}
-            onBack={() => setCurrentPage('home')}
-          />
-        );
-        
-      case 'blog':
-        return (
-          <>
-            <div className="navigation-tabs">
-              <button 
-                className="tab-button"
-                onClick={() => setCurrentPage('home')}
-              >
-                🔮 Тарологи
-              </button>
-              <button 
-                className="tab-button active"
-                onClick={() => setCurrentPage('blog')}
-              >
-                📚 Блог
-              </button>
-              {isAdmin && (
-                <button 
-                  className="tab-button"
-                  onClick={() => setCurrentPage('admin')}
-                >
-                  ⚙️ Админ
-                </button>
-              )}
-            </div>
-            <BlogSection />
-          </>
-        );
-        
-      case 'admin':
-        return isAdmin ? (
-          <AdminPanel onBack={() => setCurrentPage('home')} />
-        ) : (
-          <div className="access-denied">
-            <h2>Доступ запрещен</h2>
-            <p>У вас нет прав для просмотра этой страницы</p>
-            <button onClick={() => setCurrentPage('home')}>
-              Вернуться на главную
-            </button>
-          </div>
-        );
-        
-      default:
-        return null;
-    }
-  };
-  
+
+  const showLesson = (day) => { setLessonDay(day); setScreen('lesson'); };
+  const nextLesson = () => { if (lessonDay < 7) setLessonDay(lessonDay + 1); };
+  const goToMenu = () => setScreen('menu');
+
   return (
-    <div className="app">
-      {/* Шапка приложения */}
-      <header className="app-header">
-        <h1>✨ Эксперты Таро нашей школы</h1>
-        {userData && (
-          <p className="welcome-text">
-            Добро пожаловать, {userData.firstName}!
-          </p>
-        )}
-      </header>
-      
-      {/* Основной контент */}
-      <main className="app-content">
-        {renderContent()}
-      </main>
-      
-      {/* Футер с информацией о школе */}
-      <footer className="app-footer">
-        <p>© 2024 Ваша Школа Таро</p>
-        <p className="footer-tagline">
-          Обучаем • Поддерживаем • Продвигаем
-        </p>
-      </footer>
+    <div className="min-h-screen bg-gradient-to-b from-indigo-900 via-purple-900 to-pink-900 p-3">
+      <div className="max-w-md mx-auto">
+
+        <div className="bg-gradient-to-r from-purple-600 to-pink-600 text-white p-3 rounded-t-2xl flex items-center gap-3 shadow-lg">
+          <div className="w-10 h-10 bg-white rounded-full flex items-center justify-center text-xl">🔮</div>
+          <div>
+            <div className="font-bold">Карта дня — Анастасия Лыкова</div>
+            <div className="text-xs opacity-80">78 карт Таро • 7 уроков</div>
+          </div>
+        </div>
+
+        <div className="bg-white/95 backdrop-blur min-h-96 p-4 overflow-y-auto rounded-b-2xl shadow-xl" style={{maxHeight: '75vh'}}>
+
+          {screen === 'welcome' && (
+            <div className="text-center py-6">
+              <div className="text-7xl mb-4 animate-pulse">🔮</div>
+              <h2 className="text-2xl font-bold text-gray-800 mb-2">Карта дня</h2>
+              <p className="text-gray-600 mb-1">Получайте ежедневные послания Таро</p>
+              <p className="text-gray-500 text-sm mb-6">78 карт • 7 уроков • Недельный бонус</p>
+              <button
+                onClick={() => setScreen('menu')}
+                className="bg-gradient-to-r from-purple-500 to-pink-500 text-white px-10 py-4 rounded-full font-semibold text-lg shadow-lg hover:shadow-xl transform hover:scale-105 transition-all"
+              >
+                Начать ✨
+              </button>
+            </div>
+          )}
+
+          {screen === 'menu' && (
+            <div className="space-y-4">
+              <div className="bg-gradient-to-r from-purple-50 to-pink-50 rounded-2xl p-4 border border-purple-100">
+                <p className="text-gray-800">🌟 <strong>Добро пожаловать!</strong></p>
+                <p className="text-gray-600 text-sm mt-1">Серия: <span className="text-orange-500 font-bold">{streak}</span> дней {streak >= 7 && '🎉'} • Карт: {totalCards}</p>
+              </div>
+
+              <button
+                onClick={getDailyCard}
+                disabled={flipping}
+                className="w-full bg-gradient-to-r from-purple-500 to-pink-500 text-white p-4 rounded-xl font-semibold text-lg shadow-md hover:shadow-lg transform hover:scale-102 transition-all flex items-center justify-center gap-2"
+              >
+                {flipping ? (
+                  <span className="animate-spin">🔄</span>
+                ) : (
+                  <>🎴 Получить карту дня</>
+                )}
+              </button>
+
+              <a href={CHANNEL_LINK} target="_blank" rel="noopener noreferrer" className="block w-full bg-gradient-to-r from-blue-500 to-indigo-500 text-white p-4 rounded-xl font-semibold text-center hover:shadow-lg transition-all">
+                📢 Больше о картах таро в канале
+              </a>
+
+              <button onClick={() => setScreen('lessons')} className="w-full bg-indigo-500 text-white p-4 rounded-xl font-semibold hover:bg-indigo-600 transition-all">
+                📚 Посмотреть обучение (7 дней)
+              </button>
+
+              {weeklyUnlocked ? (
+                <button onClick={() => setScreen('weekly')} className="w-full bg-gradient-to-r from-amber-400 to-orange-500 text-white p-4 rounded-xl font-semibold animate-pulse">
+                  🎁 Недельный бонус разблокирован!
+                </button>
+              ) : (
+                <div className="w-full bg-gray-100 text-gray-400 p-4 rounded-xl font-semibold text-center">
+                  🔒 Недельный бонус (откроется через {7 - streak} дней)
+                </div>
+              )}
+            </div>
+          )}
+
+          {screen === 'lessons' && (
+            <div>
+              <div className="bg-gradient-to-r from-indigo-50 to-purple-50 rounded-2xl p-4 mb-4 border border-indigo-100">
+                <p className="text-gray-800 font-bold text-lg">📚 7 уроков для новичков</p>
+                <p className="text-gray-500 text-sm">От основ до первого расклада</p>
+              </div>
+              <div className="space-y-2">
+                {LESSONS.map((lesson, idx) => (
+                  <button
+                    key={idx}
+                    onClick={() => showLesson(idx + 1)}
+                    className="w-full text-left p-4 bg-white rounded-xl shadow-sm hover:shadow-md hover:bg-purple-50 transition-all border border-gray-100"
+                  >
+                    <div className="flex items-center gap-3">
+                      <span className="text-2xl">{lesson.emoji}</span>
+                      <div>
+                        <div className="font-semibold text-gray-800">День {lesson.day}</div>
+                        <div className="text-sm text-gray-600">{lesson.title}</div>
+                      </div>
+                    </div>
+                  </button>
+                ))}
+              </div>
+              <button onClick={goToMenu} className="w-full mt-4 bg-gray-100 text-gray-700 p-3 rounded-xl font-semibold hover:bg-gray-200 transition-all">
+                ← В меню
+              </button>
+            </div>
+          )}
+
+          {screen === 'lesson' && (
+            <div>
+              <div className="bg-white rounded-2xl p-5 shadow-sm mb-4 border border-gray-100">
+                <div className="text-4xl mb-2">{LESSONS[lessonDay - 1].emoji}</div>
+                <h3 className="font-bold text-xl text-gray-800 mb-3">День {lessonDay}: {LESSONS[lessonDay - 1].title}</h3>
+                <div className="text-gray-700 text-sm leading-relaxed whitespace-pre-line">
+                  {LESSONS[lessonDay - 1].content}
+                </div>
+              </div>
+
+              <div className="bg-gradient-to-r from-purple-50 to-pink-50 rounded-2xl p-4 border border-purple-200 mb-4">
+                <p className="text-gray-700 text-sm mb-3">💫 {LESSONS[lessonDay - 1].cta}</p>
+                <a href={INTENSIVE_LINK} target="_blank" rel="noopener noreferrer" className="block w-full bg-gradient-to-r from-purple-600 to-pink-600 text-white text-center py-3 rounded-xl font-semibold hover:shadow-lg transition-all">
+                  Записаться на интенсив →
+                </a>
+              </div>
+
+              <div className="flex gap-2">
+                <button onClick={goToMenu} className="flex-1 bg-gray-100 text-gray-700 p-3 rounded-xl font-semibold hover:bg-gray-200">← Меню</button>
+                {lessonDay < 7 && (
+                  <button onClick={nextLesson} className="flex-1 bg-purple-500 text-white p-3 rounded-xl font-semibold hover:bg-purple-600">День {lessonDay + 1} →</button>
+                )}
+              </div>
+            </div>
+          )}
+
+          {screen === 'card' && currentCard && (
+            <div>
+              <div className="bg-gradient-to-r from-amber-50 to-orange-50 rounded-2xl p-4 mb-4 border border-amber-200">
+                <p className="text-gray-800 text-lg">Доброе утро! ☀️</p>
+                {streak > 0 && <p className="mt-1 text-orange-600 font-semibold">🔥 Серия: {streak} дней подряд!</p>}
+              </div>
+
+              <div className="flex justify-center mb-4">
+                <div className="bg-gradient-to-br from-amber-400 via-orange-400 to-red-400 p-3 rounded-2xl shadow-2xl transform hover:scale-105 transition-all">
+                  <div className="bg-amber-50 rounded-xl overflow-hidden w-44">
+                    <div className="h-56 bg-gradient-to-br from-purple-100 to-pink-100 flex items-center justify-center">
+                      <span className="text-7xl">{currentCard.emoji}</span>
+                    </div>
+                    <div className="p-3 text-center bg-gradient-to-b from-amber-100 to-amber-200">
+                      <div className="font-bold text-gray-800 text-lg">{currentCard.name}</div>
+                      <div className="text-xs text-gray-600 mt-1">{currentCard.keywords.join(" • ")}</div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <div className="bg-white rounded-2xl p-5 shadow-sm border border-gray-100">
+                <div className="text-gray-800 text-sm leading-relaxed whitespace-pre-line">
+                  {currentCard.day_message}
+                </div>
+
+                <div className="mt-5 bg-gradient-to-r from-purple-50 to-pink-50 rounded-2xl p-4 border border-purple-200">
+                  <p className="text-gray-700 text-sm mb-3">💫 Хотите глубже понять все 78 карт?</p>
+                  <a href={INTENSIVE_LINK} target="_blank" rel="noopener noreferrer" className="block w-full bg-gradient-to-r from-purple-600 to-pink-600 text-white text-center py-3 rounded-xl font-semibold hover:shadow-lg transition-all">
+                    Записаться на интенсив →
+                  </a>
+                </div>
+              </div>
+
+              <div className="flex gap-2 mt-4">
+                <button onClick={goToMenu} className="flex-1 bg-gray-100 text-gray-700 p-3 rounded-xl font-semibold hover:bg-gray-200">← Меню</button>
+                <button onClick={getDailyCard} className="flex-1 bg-purple-500 text-white p-3 rounded-xl font-semibold hover:bg-purple-600">🎴 Ещё карту</button>
+              </div>
+            </div>
+          )}
+
+          {screen === 'weekly' && (
+            <div>
+              <div className="bg-gradient-to-r from-amber-100 to-orange-100 rounded-2xl p-4 mb-4 border border-amber-300">
+                <p className="text-gray-800 font-bold text-lg">🎁 Недельный бонус!</p>
+                <p className="text-gray-600 text-sm">Поздравляю! Вы открыли символ недели!</p>
+              </div>
+
+              <div className="bg-white rounded-2xl p-5 shadow-sm border border-gray-100">
+                <div className="text-5xl mb-3">{WEEKLY_SYMBOLS[0].emoji}</div>
+                <h3 className="font-bold text-xl text-gray-800 mb-3">{WEEKLY_SYMBOLS[0].title}</h3>
+                <div className="text-gray-700 text-sm leading-relaxed whitespace-pre-line">
+                  {WEEKLY_SYMBOLS[0].content}
+                </div>
+              </div>
+
+              <button onClick={goToMenu} className="w-full mt-4 bg-gray-100 text-gray-700 p-3 rounded-xl font-semibold hover:bg-gray-200">← В меню</button>
+            </div>
+          )}
+        </div>
+
+        <div className="bg-gray-800/90 backdrop-blur text-white p-3 rounded-2xl mt-3 flex justify-around text-center shadow-lg">
+          <div><div className="text-xl">🔥</div><div className="font-bold">{streak}</div><div className="text-xs opacity-70">дней</div></div>
+          <div><div className="text-xl">🎴</div><div className="font-bold">{totalCards}</div><div className="text-xs opacity-70">карт</div></div>
+          <div><div className="text-xl">📚</div><div className="font-bold">7</div><div className="text-xs opacity-70">уроков</div></div>
+          <div><div className="text-xl">{weeklyUnlocked ? '🎁' : '🔒'}</div><div className="font-bold">{weeklyUnlocked ? '✓' : '-'}</div><div className="text-xs opacity-70">бонус</div></div>
+        </div>
+      </div>
     </div>
   );
 }
 
-export default App;
+export default TarotApp;
