@@ -7,6 +7,7 @@ const cron = require('node-cron');
 
 const db = require('./database');
 const { getRandomCard, getCardById, getRandomCardsForGame, ALL_CARDS } = require('./data/cards');
+const { getCardImageUrl } = require('./data/cardImages');
 
 // Проверяем токен
 if (!process.env.BOT_TOKEN) {
@@ -113,12 +114,20 @@ bot.hears('🃏 Карта дня', async (ctx) => {
   if (todayCard) {
     const card = getCardById(todayCard.card_id);
     const streak = db.getStreak(telegramId);
+    const imageUrl = getCardImageUrl(card.id);
 
-    await ctx.replyWithMarkdown(
-      `Твоя карта на сегодня уже открыта ✨\n\n` +
+    const caption = `Твоя карта на сегодня уже открыта ✨\n\n` +
       formatCardMessage(card) +
-      `\n\n${getStreakEmoji(streak.current_streak)} _Ты на связи с Таро уже ${streak.current_streak} ${getDaysWord(streak.current_streak)} подряд_`
-    );
+      `\n\n${getStreakEmoji(streak.current_streak)} _Ты на связи с Таро уже ${streak.current_streak} ${getDaysWord(streak.current_streak)} подряд_`;
+
+    if (imageUrl) {
+      await ctx.replyWithPhoto(imageUrl, {
+        caption,
+        parse_mode: 'Markdown'
+      });
+    } else {
+      await ctx.replyWithMarkdown(caption);
+    }
     return;
   }
 
@@ -154,14 +163,26 @@ bot.hears('🃏 Карта дня', async (ctx) => {
     }
   }
 
-  await ctx.replyWithMarkdown(
-    `✨ *Вселенная говорит с тобой через карту:*\n\n` +
+  const imageUrl = getCardImageUrl(card.id);
+  const caption = `✨ *Вселенная говорит с тобой через карту:*\n\n` +
     formatCardMessage(card) +
-    streakMessage,
-    Markup.inlineKeyboard([
+    streakMessage;
+
+  if (imageUrl) {
+    await ctx.replyWithPhoto(imageUrl, {
+      caption,
+      parse_mode: 'Markdown',
+      reply_markup: {
+        inline_keyboard: [
+          [{ text: '💜 Поделиться посланием', switch_inline_query: `🌙 Моя карта дня — ${card.name}\n\n${card.advice}\n\n✨ Получи своё послание от Таро!` }]
+        ]
+      }
+    });
+  } else {
+    await ctx.replyWithMarkdown(caption, Markup.inlineKeyboard([
       [Markup.button.switchToChat('💜 Поделиться посланием', `🌙 Моя карта дня — ${card.name}\n\n${card.advice}\n\n✨ Получи своё послание от Таро!`)]
-    ])
-  );
+    ]));
+  }
 });
 
 // Склонение слова "день"
@@ -241,14 +262,31 @@ bot.action(/game_answer_(\d+)/, async (ctx) => {
       `_Твой результат: ${score.correct_answers} из ${score.total_games} (${accuracy}%)_`;
   }
 
-  await ctx.editMessageText(responseText, {
-    parse_mode: 'Markdown',
-    reply_markup: {
-      inline_keyboard: [
-        [{ text: '🎴 Продолжить познание', callback_data: 'play_again' }]
-      ]
-    }
-  });
+  // Удаляем старое сообщение с вопросом
+  await ctx.deleteMessage().catch(() => {});
+
+  // Отправляем картинку с правильным ответом
+  const imageUrl = getCardImageUrl(correctCard.id);
+  if (imageUrl) {
+    await ctx.replyWithPhoto(imageUrl, {
+      caption: responseText,
+      parse_mode: 'Markdown',
+      reply_markup: {
+        inline_keyboard: [
+          [{ text: '🎴 Продолжить познание', callback_data: 'play_again' }]
+        ]
+      }
+    });
+  } else {
+    await ctx.reply(responseText, {
+      parse_mode: 'Markdown',
+      reply_markup: {
+        inline_keyboard: [
+          [{ text: '🎴 Продолжить познание', callback_data: 'play_again' }]
+        ]
+      }
+    });
+  }
 
   await ctx.answerCbQuery(isCorrect ? '✨ Верно!' : '🌙 Учимся дальше');
 });
