@@ -1,0 +1,382 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <meta name="theme-color" content="#C9A227">
+  <meta name="description" content="Tarot Daily Card - Get your AI-powered Tarot reading every day">
+
+  <title>Tarot Card of the Day</title>
+
+  <!-- Telegram Web App Script -->
+  <script src="https://telegram.org/js/telegram-web-app.js"></script>
+
+  <!-- Prevent zoom on iOS -->
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+
+  <!-- Preconnect to fonts -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+
+  <style>
+    /* Critical CSS for initial load */
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      background: linear-gradient(135deg, #FDF8F0, #F5EDE0);
+      min-height: 100vh;
+      color: #2D2A26;
+    }
+
+    #root {
+      min-height: 100vh;
+    }
+
+    /* Loading state */
+    .initial-loading {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      min-height: 100vh;
+      padding: 2rem;
+    }
+
+    .initial-loading .logo {
+      font-size: 4rem;
+      margin-bottom: 1rem;
+      animation: pulse 1.5s ease-in-out infinite;
+    }
+
+    .initial-loading .text {
+      color: #8B6914;
+      font-size: 1.1rem;
+      font-weight: 500;
+    }
+
+    @keyframes pulse {
+      0%, 100% { transform: scale(1); opacity: 1; }
+      50% { transform: scale(1.1); opacity: 0.8; }
+    }
+
+    /* Spinner */
+    .spinner {
+      width: 40px;
+      height: 40px;
+      border: 3px solid rgba(201, 162, 39, 0.2);
+      border-top-color: #C9A227;
+      border-radius: 50%;
+      animation: spin 1s linear infinite;
+      margin-top: 1.5rem;
+    }
+
+    @keyframes spin {
+      to { transform: rotate(360deg); }
+    }
+  </style>
+</head>
+<body>
+  <div id="root">
+    <!-- Initial loading state before React loads -->
+    <div class="initial-loading">
+      <div class="logo">&#127917;</div>
+      <div class="text">Loading your daily wisdom...</div>
+      <div class="spinner"></div>
+    </div>
+  </div>
+
+  <!-- React App Bundle -->
+  <script src="/src/bundle.js" type="module"></script>
+
+  <!-- Fallback for development without webpack -->
+  <script type="module">
+    // Check if bundle loaded, if not load dev version
+    if (!window.__REACT_LOADED__) {
+      // Development: Load React from CDN
+      const reactScript = document.createElement('script');
+      reactScript.src = 'https://unpkg.com/react@18/umd/react.development.js';
+      reactScript.crossOrigin = 'anonymous';
+      document.head.appendChild(reactScript);
+
+      const reactDomScript = document.createElement('script');
+      reactDomScript.src = 'https://unpkg.com/react-dom@18/umd/react-dom.development.js';
+      reactDomScript.crossOrigin = 'anonymous';
+      document.head.appendChild(reactDomScript);
+
+      const babelScript = document.createElement('script');
+      babelScript.src = 'https://unpkg.com/@babel/standalone/babel.min.js';
+      document.head.appendChild(babelScript);
+
+      babelScript.onload = () => {
+        // Load the app with Babel transformation
+        const appScript = document.createElement('script');
+        appScript.type = 'text/babel';
+        appScript.setAttribute('data-type', 'module');
+        appScript.src = '/src/App.jsx';
+        document.body.appendChild(appScript);
+      };
+    }
+  </script>
+
+  <!-- Simple inline React app loader for development -->
+  <script type="text/babel" data-type="module">
+    // Wait for React to be available
+    const waitForReact = () => {
+      return new Promise((resolve) => {
+        const check = () => {
+          if (window.React && window.ReactDOM) {
+            resolve();
+          } else {
+            setTimeout(check, 50);
+          }
+        };
+        check();
+      });
+    };
+
+    // Simple development app
+    const DevApp = () => {
+      const [page, setPage] = React.useState('loading');
+      const [userData, setUserData] = React.useState(null);
+      const [generation, setGeneration] = React.useState(null);
+      const [isFlipped, setIsFlipped] = React.useState(false);
+      const [isGenerating, setIsGenerating] = React.useState(false);
+      const [error, setError] = React.useState(null);
+
+      React.useEffect(() => {
+        initApp();
+      }, []);
+
+      const initApp = async () => {
+        // Get Telegram user data
+        let user = { id: 123456789, firstName: 'User' };
+
+        if (window.Telegram?.WebApp) {
+          const tg = window.Telegram.WebApp;
+          tg.expand();
+          tg.setHeaderColor('#C9A227');
+          tg.setBackgroundColor('#FDF8F0');
+
+          if (tg.initDataUnsafe?.user) {
+            user = {
+              id: tg.initDataUnsafe.user.id,
+              firstName: tg.initDataUnsafe.user.first_name
+            };
+          }
+        }
+
+        setUserData(user);
+
+        // Register user
+        try {
+          await fetch('/api/users/register', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              telegram_id: user.id,
+              first_name: user.firstName
+            })
+          });
+        } catch (e) {
+          console.log('Registration:', e);
+        }
+
+        // Check for existing generation
+        try {
+          const res = await fetch(`/api/generations/today/${user.id}`);
+          const data = await res.json();
+          if (data.generation) {
+            setGeneration(data.generation);
+            setIsFlipped(true);
+          }
+        } catch (e) {
+          console.log('Check generation:', e);
+        }
+
+        setPage('home');
+      };
+
+      const generateCard = async () => {
+        if (!userData || isGenerating) return;
+
+        setIsGenerating(true);
+        setError(null);
+
+        try {
+          const res = await fetch('/api/generations/generate', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ telegram_id: userData.id })
+          });
+
+          const data = await res.json();
+
+          if (!res.ok) {
+            throw new Error(data.error || 'Generation failed');
+          }
+
+          setGeneration(data.generation);
+
+          // Animate flip
+          setTimeout(() => {
+            setIsFlipped(true);
+            if (window.Telegram?.WebApp?.HapticFeedback) {
+              window.Telegram.WebApp.HapticFeedback.notificationOccurred('success');
+            }
+          }, 300);
+
+        } catch (e) {
+          setError(e.message);
+        } finally {
+          setIsGenerating(false);
+        }
+      };
+
+      if (page === 'loading') {
+        return React.createElement('div', { className: 'initial-loading' },
+          React.createElement('div', { className: 'logo' }, String.fromCodePoint(127917)),
+          React.createElement('div', { className: 'text' }, 'Loading your daily wisdom...'),
+          React.createElement('div', { className: 'spinner' })
+        );
+      }
+
+      return React.createElement('div', { className: 'app' },
+        // Header
+        React.createElement('header', { className: 'app-header' },
+          React.createElement('h1', null, 'Tarot Card of the Day'),
+          userData && React.createElement('p', { className: 'welcome-text' },
+            `Hello, ${userData.firstName}!`
+          )
+        ),
+
+        // Content
+        React.createElement('main', { className: 'app-content' },
+          React.createElement('div', { className: 'daily-card-container' },
+            // Intro
+            React.createElement('div', { className: 'card-intro' },
+              React.createElement('h2', null, 'Your Daily Tarot Guidance'),
+              React.createElement('p', null, 'Discover the mystical message the Universe has for you today')
+            ),
+
+            // Already generated message
+            generation && React.createElement('div', { className: 'already-generated-message' },
+              React.createElement('p', null, "You've received your card for today.")
+            ),
+
+            // Card
+            React.createElement('div', { className: 'tarot-card-wrapper' },
+              React.createElement('div', {
+                className: `tarot-card ${isFlipped ? 'flipped' : ''}`,
+                onClick: () => generation && !isFlipped && setIsFlipped(true)
+              },
+                // Back
+                React.createElement('div', { className: 'card-face card-back' },
+                  React.createElement('span', { className: 'card-back-text' }, 'TAP TO REVEAL')
+                ),
+                // Front
+                React.createElement('div', { className: 'card-face card-front' },
+                  generation ? React.createElement(React.Fragment, null,
+                    React.createElement('div', { className: 'card-image-container' },
+                      generation.image_url
+                        ? React.createElement('img', {
+                            src: generation.image_url,
+                            alt: generation.card_name,
+                            className: 'card-image'
+                          })
+                        : React.createElement('div', {
+                            style: {
+                              fontSize: '4rem',
+                              display: 'flex',
+                              alignItems: 'center',
+                              justifyContent: 'center',
+                              height: '100%'
+                            }
+                          }, String.fromCodePoint(127917))
+                    ),
+                    React.createElement('div', { className: 'card-name' }, generation.card_name)
+                  ) : React.createElement('div', {
+                    style: {
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      height: '100%'
+                    }
+                  }, '?')
+                )
+              )
+            ),
+
+            // Error
+            error && React.createElement('div', { className: 'error-message' }, error),
+
+            // Generate button
+            !generation && React.createElement('button', {
+              className: `get-card-button ${isGenerating ? 'loading' : ''}`,
+              onClick: generateCard,
+              disabled: isGenerating
+            },
+              isGenerating
+                ? React.createElement(React.Fragment, null,
+                    React.createElement('span', { className: 'button-spinner' }),
+                    'Revealing your card...'
+                  )
+                : 'Get Card of the Day'
+            ),
+
+            // Interpretations
+            generation && isFlipped && generation.text_content && React.createElement('div', {
+              className: 'interpretation-section'
+            },
+              generation.text_content.general_energy && React.createElement('div', {
+                className: 'interpretation-card general'
+              },
+                React.createElement('h3', null, String.fromCodePoint(10024), ' General Energy'),
+                React.createElement('p', null, generation.text_content.general_energy)
+              ),
+              generation.text_content.love_relationships && React.createElement('div', {
+                className: 'interpretation-card love'
+              },
+                React.createElement('h3', null, String.fromCodePoint(128151), ' Love & Relationships'),
+                React.createElement('p', null, generation.text_content.love_relationships)
+              ),
+              generation.text_content.career_finance && React.createElement('div', {
+                className: 'interpretation-card career'
+              },
+                React.createElement('h3', null, String.fromCodePoint(128176), ' Career & Finance'),
+                React.createElement('p', null, generation.text_content.career_finance)
+              ),
+              generation.text_content.expert_advice && React.createElement('div', {
+                className: 'interpretation-card advice'
+              },
+                React.createElement('h3', null, String.fromCodePoint(129668), " Expert's Wisdom"),
+                React.createElement('p', null, generation.text_content.expert_advice)
+              )
+            )
+          )
+        ),
+
+        // Footer
+        React.createElement('footer', { className: 'app-footer' },
+          React.createElement('p', null, 'Tarot Daily Card'),
+          React.createElement('p', { className: 'footer-tagline' }, 'Discover your path each day')
+        )
+      );
+    };
+
+    // Mount app when React is ready
+    waitForReact().then(() => {
+      const root = ReactDOM.createRoot(document.getElementById('root'));
+      root.render(React.createElement(DevApp));
+    });
+  </script>
+
+  <!-- Link to CSS -->
+  <link rel="stylesheet" href="/src/App.css">
+</body>
+</html>

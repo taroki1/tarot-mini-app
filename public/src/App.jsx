@@ -1,232 +1,254 @@
 // public/src/App.jsx
-// Главный компонент нашего приложения - это как каркас здания
+// Tarot Daily Card - Main App Component
+// Provides daily AI-generated Tarot readings
+
 import React, { useState, useEffect } from 'react';
 import './App.css';
 
-// Компоненты для разных страниц приложения
-import TarotReadersList from './components/TarotReadersList';
-import TarotReaderProfile from './components/TarotReaderProfile';
+// Components
+import DailyCard from './components/DailyCard';
 import AdminPanel from './components/AdminPanel';
-import BlogSection from './components/BlogSection';
-import PromoBanner from './components/PromoBanner';
 
-// Главный компонент приложения
+// Main App Component
 function App() {
-  // State - это память нашего приложения, здесь мы храним текущее состояние
+  // Application State
   const [currentPage, setCurrentPage] = useState('home');
-  const [selectedTarotReader, setSelectedTarotReader] = useState(null);
   const [userData, setUserData] = useState(null);
   const [isAdmin, setIsAdmin] = useState(false);
-  const [promoBanners, setPromoBanners] = useState([]);
-  
-  // useEffect - это код, который выполняется при загрузке приложения
+  const [todayGeneration, setTodayGeneration] = useState(null);
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState(null);
+
+  // Initialize Telegram Web App on mount
   useEffect(() => {
-    // Инициализация Telegram Web App
-    if (window.Telegram?.WebApp) {
-      const tg = window.Telegram.WebApp;
-      
-      // Расширяем приложение на весь экран
-      tg.expand();
-      
-      // Настраиваем цвета интерфейса под тему Telegram
-      tg.setHeaderColor('#6B46C1'); // Фиолетовый цвет для шапки
-      tg.setBackgroundColor('#F7F4FF'); // Светлый фон
-      
-      // Получаем данные пользователя из Telegram
-      const user = tg.initDataUnsafe?.user;
-      if (user) {
-        setUserData({
-          id: user.id,
-          firstName: user.first_name,
-          lastName: user.last_name,
-          username: user.username
-        });
-        
-        // Проверяем, является ли пользователь администратором
-        checkAdminStatus(user.id);
-      }
-      
-      // Настраиваем кнопку "Назад" в Telegram
-      tg.BackButton.onClick(() => handleBackButton());
-    }
-    
-    // Загружаем промо-баннеры
-    loadPromoBanners();
+    initTelegramWebApp();
   }, []);
-  
-  // Функция для проверки админских прав
+
+  // Initialize Telegram Web App
+  const initTelegramWebApp = async () => {
+    try {
+      if (window.Telegram?.WebApp) {
+        const tg = window.Telegram.WebApp;
+
+        // Expand to full screen
+        tg.expand();
+
+        // Set theme colors - Gold theme
+        tg.setHeaderColor('#C9A227');
+        tg.setBackgroundColor('#FDF8F0');
+
+        // Get user data from Telegram
+        const user = tg.initDataUnsafe?.user;
+        if (user) {
+          const userInfo = {
+            id: user.id,
+            firstName: user.first_name,
+            lastName: user.last_name,
+            username: user.username
+          };
+          setUserData(userInfo);
+
+          // Register/update user and check for existing generation
+          await registerUser(userInfo);
+          await checkTodayGeneration(user.id);
+
+          // Check admin status
+          checkAdminStatus(user.id);
+        } else {
+          // Development mode - use test user
+          const testUser = {
+            id: 123456789,
+            firstName: 'Test',
+            lastName: 'User',
+            username: 'testuser'
+          };
+          setUserData(testUser);
+          await checkTodayGeneration(testUser.id);
+        }
+
+        // Setup back button handler
+        tg.BackButton.onClick(() => handleBackButton());
+      } else {
+        // Development mode without Telegram
+        const testUser = {
+          id: 123456789,
+          firstName: 'Test',
+          lastName: 'User',
+          username: 'testuser'
+        };
+        setUserData(testUser);
+        await checkTodayGeneration(testUser.id);
+      }
+    } catch (err) {
+      console.error('Initialization error:', err);
+      setError('Failed to initialize app');
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  // Register user in database
+  const registerUser = async (user) => {
+    try {
+      await fetch('/api/users/register', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          telegram_id: user.id,
+          first_name: user.firstName,
+          last_name: user.lastName,
+          username: user.username
+        })
+      });
+    } catch (err) {
+      console.error('Failed to register user:', err);
+    }
+  };
+
+  // Check if user already has a generation for today
+  const checkTodayGeneration = async (telegramId) => {
+    try {
+      const response = await fetch(`/api/generations/today/${telegramId}`);
+      if (response.ok) {
+        const data = await response.json();
+        if (data.generation) {
+          setTodayGeneration(data.generation);
+        }
+      }
+    } catch (err) {
+      console.error('Failed to check today generation:', err);
+    }
+  };
+
+  // Check if user is admin
   const checkAdminStatus = async (telegramId) => {
     try {
-      // В реальном приложении здесь будет проверка через API
-      // Для демо просто проверяем ID
-      const adminIds = [123456789]; // Замените на реальные ID админов
-      setIsAdmin(adminIds.includes(telegramId));
-    } catch (error) {
-      console.error('Ошибка при проверке статуса админа:', error);
+      const response = await fetch(`/api/admin/check/${telegramId}`);
+      if (response.ok) {
+        const data = await response.json();
+        setIsAdmin(data.isAdmin);
+      }
+    } catch (err) {
+      console.error('Failed to check admin status:', err);
     }
   };
-  
-  // Загрузка промо-баннеров с сервера
-  const loadPromoBanners = async () => {
-    try {
-      const response = await fetch('/api/promo-banners');
-      const banners = await response.json();
-      setPromoBanners(banners);
-    } catch (error) {
-      console.error('Ошибка при загрузке баннеров:', error);
-    }
-  };
-  
-  // Обработка кнопки "Назад"
+
+  // Handle back button
   const handleBackButton = () => {
-    if (currentPage === 'tarot-reader-profile') {
+    if (currentPage !== 'home') {
       setCurrentPage('home');
-      setSelectedTarotReader(null);
-    } else if (currentPage === 'blog') {
-      setCurrentPage('home');
-    }
-    
-    // Скрываем кнопку "Назад" на главной странице
-    if (window.Telegram?.WebApp) {
-      const tg = window.Telegram.WebApp;
-      if (currentPage === 'home') {
-        tg.BackButton.hide();
+      if (window.Telegram?.WebApp) {
+        window.Telegram.WebApp.BackButton.hide();
       }
     }
   };
-  
-  // Функция для перехода на страницу профиля таролога
-  const openTarotReaderProfile = (tarotReader) => {
-    setSelectedTarotReader(tarotReader);
-    setCurrentPage('tarot-reader-profile');
-    
-    // Показываем кнопку "Назад" в Telegram
-    if (window.Telegram?.WebApp) {
+
+  // Navigate to page
+  const navigateTo = (page) => {
+    setCurrentPage(page);
+    if (page !== 'home' && window.Telegram?.WebApp) {
       window.Telegram.WebApp.BackButton.show();
     }
   };
-  
-  // Рендерим разный контент в зависимости от текущей страницы
+
+  // Handle new generation
+  const handleNewGeneration = (generation) => {
+    setTodayGeneration(generation);
+
+    // Haptic feedback
+    if (window.Telegram?.WebApp?.HapticFeedback) {
+      window.Telegram.WebApp.HapticFeedback.notificationOccurred('success');
+    }
+  };
+
+  // Render page content
   const renderContent = () => {
+    if (isLoading) {
+      return (
+        <div className="loading-container">
+          <div className="loading-card">
+            <div className="button-spinner" style={{ width: 40, height: 40 }}></div>
+          </div>
+          <div className="loading-text">
+            Loading your destiny...
+            <span>Please wait</span>
+          </div>
+        </div>
+      );
+    }
+
+    if (error) {
+      return (
+        <div className="error-message">
+          {error}
+        </div>
+      );
+    }
+
     switch (currentPage) {
       case 'home':
         return (
-          <>
-            {/* Промо-баннер вверху страницы */}
-            {promoBanners.length > 0 && (
-              <PromoBanner banner={promoBanners[0]} />
-            )}
-            
-            {/* Навигационные вкладки */}
-            <div className="navigation-tabs">
-              <button 
-                className="tab-button active"
-                onClick={() => setCurrentPage('home')}
-              >
-                🔮 Тарологи
-              </button>
-              <button 
-                className="tab-button"
-                onClick={() => setCurrentPage('blog')}
-              >
-                📚 Блог
-              </button>
-              {isAdmin && (
-                <button 
-                  className="tab-button"
-                  onClick={() => setCurrentPage('admin')}
-                >
-                  ⚙️ Админ
-                </button>
-              )}
-            </div>
-            
-            {/* Список тарологов */}
-            <TarotReadersList 
-              onSelectTarotReader={openTarotReaderProfile}
-              userData={userData}
-            />
-          </>
-        );
-        
-      case 'tarot-reader-profile':
-        return (
-          <TarotReaderProfile 
-            tarotReader={selectedTarotReader}
+          <DailyCard
             userData={userData}
-            onBack={() => setCurrentPage('home')}
+            todayGeneration={todayGeneration}
+            onNewGeneration={handleNewGeneration}
           />
         );
-        
-      case 'blog':
-        return (
-          <>
-            <div className="navigation-tabs">
-              <button 
-                className="tab-button"
-                onClick={() => setCurrentPage('home')}
-              >
-                🔮 Тарологи
-              </button>
-              <button 
-                className="tab-button active"
-                onClick={() => setCurrentPage('blog')}
-              >
-                📚 Блог
-              </button>
-              {isAdmin && (
-                <button 
-                  className="tab-button"
-                  onClick={() => setCurrentPage('admin')}
-                >
-                  ⚙️ Админ
-                </button>
-              )}
-            </div>
-            <BlogSection />
-          </>
-        );
-        
+
       case 'admin':
         return isAdmin ? (
-          <AdminPanel onBack={() => setCurrentPage('home')} />
+          <AdminPanel onBack={() => navigateTo('home')} />
         ) : (
-          <div className="access-denied">
-            <h2>Доступ запрещен</h2>
-            <p>У вас нет прав для просмотра этой страницы</p>
-            <button onClick={() => setCurrentPage('home')}>
-              Вернуться на главную
-            </button>
+          <div className="error-message">
+            Access denied. Admin privileges required.
           </div>
         );
-        
+
       default:
         return null;
     }
   };
-  
+
   return (
     <div className="app">
-      {/* Шапка приложения */}
+      {/* Header */}
       <header className="app-header">
-        <h1>✨ Эксперты Таро нашей школы</h1>
+        <h1>Tarot Card of the Day</h1>
         {userData && (
           <p className="welcome-text">
-            Добро пожаловать, {userData.firstName}!
+            Hello, {userData.firstName}!
           </p>
         )}
       </header>
-      
-      {/* Основной контент */}
+
+      {/* Navigation (only show if admin) */}
+      {isAdmin && (
+        <div className="navigation-tabs">
+          <button
+            className={`tab-button ${currentPage === 'home' ? 'active' : ''}`}
+            onClick={() => navigateTo('home')}
+          >
+            Daily Card
+          </button>
+          <button
+            className={`tab-button ${currentPage === 'admin' ? 'active' : ''}`}
+            onClick={() => navigateTo('admin')}
+          >
+            Admin
+          </button>
+        </div>
+      )}
+
+      {/* Main Content */}
       <main className="app-content">
         {renderContent()}
       </main>
-      
-      {/* Футер с информацией о школе */}
+
+      {/* Footer */}
       <footer className="app-footer">
-        <p>© 2024 Ваша Школа Таро</p>
+        <p>Tarot Daily Card</p>
         <p className="footer-tagline">
-          Обучаем • Поддерживаем • Продвигаем
+          Discover your path each day
         </p>
       </footer>
     </div>

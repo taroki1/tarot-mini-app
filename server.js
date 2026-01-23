@@ -1,399 +1,640 @@
-// server.js - Главный файл нашего сервера
-// Этот файл - как диспетчерская в аэропорту, направляет все запросы по нужным маршрутам
+// server.js - Tarot Daily Card API Server
+// Handles AI generation, Moscow timezone logic, and all API endpoints
 
 const express = require('express');
 const cors = require('cors');
 const path = require('path');
 const dotenv = require('dotenv');
 const { Pool } = require('pg');
-const TelegramBot = require('node-telegram-bot-api');
-const { google } = require('googleapis');
 const jwt = require('jsonwebtoken');
 const crypto = require('crypto');
 
-// Загружаем переменные окружения из файла .env
+// Load environment variables
 dotenv.config();
 
-// Создаем приложение Express
+// Create Express app
 const app = express();
 const PORT = process.env.PORT || 3000;
 
-// Middleware - это как контрольно-пропускные пункты для запросов
-app.use(cors()); // Разрешаем запросы с других доменов
-app.use(express.json()); // Парсим JSON в теле запросов
-app.use(express.static('public')); // Отдаем статические файлы из папки public
+// Middleware
+app.use(cors());
+app.use(express.json());
+app.use(express.static('public'));
 
-// Подключение к базе данных PostgreSQL
-// Это наше хранилище всех данных приложения
+// Database connection
 const pool = new Pool({
   connectionString: process.env.DATABASE_URL || 'postgresql://localhost/tarot_app',
   ssl: process.env.NODE_ENV === 'production' ? { rejectUnauthorized: false } : false
 });
 
-// Инициализация Telegram Bot
-// Это наш помощник для отправки уведомлений
-const bot = new TelegramBot(process.env.TELEGRAM_BOT_TOKEN, { polling: false });
+// Admin Telegram IDs (for quick admin check without password)
+const ADMIN_TELEGRAM_IDS = process.env.ADMIN_TELEGRAM_IDS
+  ? process.env.ADMIN_TELEGRAM_IDS.split(',').map(id => parseInt(id.trim()))
+  : [];
 
-// Функция для проверки Telegram Web App данных
-// Это как проверка паспорта на входе - убеждаемся, что пользователь пришел из Telegram
-function verifyTelegramWebAppData(telegramInitData) {
-  const urlParams = new URLSearchParams(telegramInitData);
-  const hash = urlParams.get('hash');
-  urlParams.delete('hash');
-  
-  // Сортируем параметры и создаем строку для проверки
-  const dataCheckString = Array.from(urlParams.entries())
-    .sort(([a], [b]) => a.localeCompare(b))
-    .map(([key, value]) => `${key}=${value}`)
-    .join('\n');
-  
-  // Проверяем подпись данных
-  const secret = crypto
-    .createHmac('sha256', 'WebAppData')
-    .update(process.env.TELEGRAM_BOT_TOKEN)
-    .digest();
-  
-  const signature = crypto
-    .createHmac('sha256', secret)
-    .update(dataCheckString)
-    .digest('hex');
-  
-  return signature === hash;
+// =============================================================================
+// UTILITY FUNCTIONS
+// =============================================================================
+
+/**
+ * Get current Moscow Date considering 9:00 AM reset
+ * Returns the "astronomical day" for generation tracking
+ */
+function getMoscowAstronomicalDate() {
+  const now = new Date();
+
+  // Get current time in Moscow (UTC+3)
+  const moscowOffset = 3 * 60; // minutes
+  const utcTime = now.getTime() + (now.getTimezoneOffset() * 60000);
+  const moscowTime = new Date(utcTime + (moscowOffset * 60000));
+
+  // If before 9:00 AM Moscow time, use previous day
+  const moscowHours = moscowTime.getHours();
+  if (moscowHours < 9) {
+    moscowTime.setDate(moscowTime.getDate() - 1);
+  }
+
+  // Return date string in YYYY-MM-DD format
+  return moscowTime.toISOString().split('T')[0];
 }
 
-// ========== МАРШРУТЫ API ==========
-// Каждый маршрут - это дверь в определенную функцию нашего приложения
+/**
+ * Verify JWT token middleware
+ */
+function authenticateToken(req, res, next) {
+  const authHeader = req.headers['authorization'];
+  const token = authHeader && authHeader.split(' ')[1];
 
-// Получение списка всех тарологов
-app.get('/api/tarot-readers', async (req, res) => {
-  try {
-    // Запрашиваем из базы всех активных тарологов с их статистикой
-    const query = `
-      SELECT 
-        tr.*,
-        COUNT(DISTINCT c.id) as total_consultations,
-        AVG(r.rating) as average_rating,
-        COUNT(DISTINCT r.id) as total_reviews
-      FROM tarot_readers tr
-      LEFT JOIN consultations c ON tr.id = c.tarot_reader_id
-      LEFT JOIN reviews r ON c.id = r.consultation_id
-      WHERE tr.is_active = true
-      GROUP BY tr.id
-      ORDER BY tr.is_featured DESC, average_rating DESC NULLS LAST
-    `;
-    
-    const result = await pool.query(query);
-    res.json(result.rows);
-  } catch (error) {
-    console.error('Ошибка при получении списка тарологов:', error);
-    res.status(500).json({ error: 'Внутренняя ошибка сервера' });
+  if (!token) {
+    return res.status(401).json({ error: 'Authentication required' });
   }
-});
 
-// Получение детальной информации о конкретном тарологе
-app.get('/api/tarot-readers/:id', async (req, res) => {
   try {
-    const { id } = req.params;
-    
-    // Получаем полную информацию о тарологе, включая отзывы
-    const tarotReaderQuery = `
-      SELECT 
-        tr.*,
-        COUNT(DISTINCT c.id) as total_consultations,
-        AVG(r.rating) as average_rating
-      FROM tarot_readers tr
-      LEFT JOIN consultations c ON tr.id = c.tarot_reader_id
-      LEFT JOIN reviews r ON c.id = r.consultation_id
-      WHERE tr.id = $1
-      GROUP BY tr.id
-    `;
-    
-    const reviewsQuery = `
-      SELECT r.*, u.first_name, u.last_name
-      FROM reviews r
-      JOIN consultations c ON r.consultation_id = c.id
-      JOIN users u ON c.client_id = u.id
-      WHERE c.tarot_reader_id = $1
-      ORDER BY r.created_at DESC
-      LIMIT 10
-    `;
-    
-    const [tarotReader, reviews] = await Promise.all([
-      pool.query(tarotReaderQuery, [id]),
-      pool.query(reviewsQuery, [id])
-    ]);
-    
-    if (tarotReader.rows.length === 0) {
-      return res.status(404).json({ error: 'Таролог не найден' });
-    }
-    
-    res.json({
-      ...tarotReader.rows[0],
-      reviews: reviews.rows
-    });
-  } catch (error) {
-    console.error('Ошибка при получении информации о тарологе:', error);
-    res.status(500).json({ error: 'Внутренняя ошибка сервера' });
-  }
-});
-
-// Создание новой консультации (когда клиент выбирает таролога)
-app.post('/api/consultations', async (req, res) => {
-  try {
-    const { tarot_reader_id, client_telegram_id, client_name } = req.body;
-    
-    // Генерируем уникальный код подтверждения
-    const confirmationCode = Math.floor(100000 + Math.random() * 900000).toString();
-    
-    // Создаем запись о консультации
-    const insertQuery = `
-      INSERT INTO consultations (tarot_reader_id, client_telegram_id, client_name, confirmation_code, status)
-      VALUES ($1, $2, $3, $4, 'pending')
-      RETURNING *
-    `;
-    
-    const result = await pool.query(insertQuery, [
-      tarot_reader_id,
-      client_telegram_id,
-      client_name,
-      confirmationCode
-    ]);
-    
-    // Получаем информацию о тарологе для отправки уведомления
-    const tarotReaderQuery = await pool.query(
-      'SELECT * FROM tarot_readers WHERE id = $1',
-      [tarot_reader_id]
-    );
-    
-    const tarotReader = tarotReaderQuery.rows[0];
-    
-    // Отправляем уведомление тарологу через Telegram
-    if (tarotReader.telegram_id) {
-      const message = `
-🔮 Новая заявка на консультацию!
-
-👤 Клиент: ${client_name}
-🔢 Код подтверждения: ${confirmationCode}
-
-Пожалуйста, свяжитесь с клиентом и запросите код для подтверждения начала консультации.
-      `;
-      
-      await bot.sendMessage(tarotReader.telegram_id, message);
-    }
-    
-    res.json({
-      consultation_id: result.rows[0].id,
-      confirmation_code: confirmationCode,
-      tarot_reader_telegram: tarotReader.telegram_username
-    });
-  } catch (error) {
-    console.error('Ошибка при создании консультации:', error);
-    res.status(500).json({ error: 'Не удалось создать заявку на консультацию' });
-  }
-});
-
-// Подтверждение проведения консультации (тарологом)
-app.post('/api/consultations/confirm', async (req, res) => {
-  try {
-    const { confirmation_code, tarot_reader_id } = req.body;
-    
-    // Проверяем код и обновляем статус консультации
-    const updateQuery = `
-      UPDATE consultations 
-      SET status = 'completed', completed_at = NOW()
-      WHERE confirmation_code = $1 
-        AND tarot_reader_id = $2 
-        AND status = 'pending'
-      RETURNING *
-    `;
-    
-    const result = await pool.query(updateQuery, [confirmation_code, tarot_reader_id]);
-    
-    if (result.rows.length === 0) {
-      return res.status(404).json({ error: 'Консультация не найдена или уже подтверждена' });
-    }
-    
-    // Отправляем уведомление клиенту о возможности оставить отзыв
-    const consultation = result.rows[0];
-    if (consultation.client_telegram_id) {
-      const message = `
-✅ Ваша консультация завершена!
-
-Пожалуйста, оцените работу таролога и оставьте отзыв в нашем приложении.
-Это поможет другим клиентам с выбором специалиста.
-
-Спасибо, что выбрали нашу школу! 💜
-      `;
-      
-      await bot.sendMessage(consultation.client_telegram_id, message);
-    }
-    
-    res.json({ success: true, consultation: result.rows[0] });
-  } catch (error) {
-    console.error('Ошибка при подтверждении консультации:', error);
-    res.status(500).json({ error: 'Не удалось подтвердить консультацию' });
-  }
-});
-
-// Добавление отзыва
-app.post('/api/reviews', async (req, res) => {
-  try {
-    const { consultation_id, rating, comment, client_telegram_id } = req.body;
-    
-    // Проверяем, что консультация существует и завершена
-    const consultationCheck = await pool.query(
-      'SELECT * FROM consultations WHERE id = $1 AND client_telegram_id = $2 AND status = $3',
-      [consultation_id, client_telegram_id, 'completed']
-    );
-    
-    if (consultationCheck.rows.length === 0) {
-      return res.status(403).json({ 
-        error: 'Вы можете оставить отзыв только после завершенной консультации' 
-      });
-    }
-    
-    // Проверяем, не оставлял ли уже отзыв
-    const existingReview = await pool.query(
-      'SELECT * FROM reviews WHERE consultation_id = $1',
-      [consultation_id]
-    );
-    
-    if (existingReview.rows.length > 0) {
-      return res.status(400).json({ error: 'Вы уже оставили отзыв для этой консультации' });
-    }
-    
-    // Создаем отзыв
-    const insertQuery = `
-      INSERT INTO reviews (consultation_id, rating, comment)
-      VALUES ($1, $2, $3)
-      RETURNING *
-    `;
-    
-    const result = await pool.query(insertQuery, [consultation_id, rating, comment]);
-    
-    res.json(result.rows[0]);
-  } catch (error) {
-    console.error('Ошибка при добавлении отзыва:', error);
-    res.status(500).json({ error: 'Не удалось добавить отзыв' });
-  }
-});
-
-// ========== АДМИН-ПАНЕЛЬ ==========
-// Эти маршруты доступны только администраторам
-
-// Middleware для проверки админских прав
-async function checkAdmin(req, res, next) {
-  try {
-    const token = req.headers.authorization?.split(' ')[1];
-    if (!token) {
-      return res.status(401).json({ error: 'Требуется авторизация' });
-    }
-    
     const decoded = jwt.verify(token, process.env.JWT_SECRET || 'your-secret-key');
     req.admin = decoded;
     next();
   } catch (error) {
-    res.status(401).json({ error: 'Недействительный токен' });
+    return res.status(403).json({ error: 'Invalid token' });
   }
 }
 
-// Авторизация администратора
+/**
+ * Generate AI interpretation using OpenAI
+ */
+async function generateInterpretation(card, expertContext) {
+  // If OpenAI API key is not configured, return mock data
+  if (!process.env.OPENAI_API_KEY) {
+    console.log('OpenAI API key not configured, using mock interpretation');
+    return {
+      general_energy: `Today, ${card.name} brings powerful energy into your life. This card speaks of ${card.keywords.join(', ')}. ${card.description}`,
+      love_relationships: `In matters of the heart, ${card.name} suggests a time of ${card.keywords[0]}. Be open to new connections and trust your intuition in romantic matters.`,
+      career_finance: `For your career and finances, this card indicates ${card.keywords[1] || 'positive changes'}. Focus on your goals and take calculated risks when opportunities arise.`,
+      expert_advice: `Remember: ${card.description} Trust the journey and embrace the wisdom that ${card.name} offers you today.`
+    };
+  }
+
+  try {
+    const response = await fetch('https://api.openai.com/v1/chat/completions', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${process.env.OPENAI_API_KEY}`
+      },
+      body: JSON.stringify({
+        model: process.env.OPENAI_MODEL || 'gpt-4-turbo-preview',
+        messages: [
+          {
+            role: 'system',
+            content: `You are an expert Tarot reader providing daily card interpretations.
+${expertContext ? `Use this expert knowledge to shape your interpretation style:\n${expertContext}\n\n` : ''}
+Provide warm, insightful, and actionable guidance. Be specific but not alarming.
+Always maintain a positive and empowering tone while being authentic to the card's meaning.
+Respond in JSON format with these exact keys: general_energy, love_relationships, career_finance, expert_advice`
+          },
+          {
+            role: 'user',
+            content: `Provide a daily Tarot reading for the card: ${card.name}
+Card meaning: ${card.description}
+Keywords: ${card.keywords.join(', ')}
+
+Create an interpretation with:
+1. general_energy: 1-2 sentences about today's overall energy
+2. love_relationships: Specific advice for love and relationships
+3. career_finance: Specific advice for career and finances
+4. expert_advice: A concluding wisdom snippet
+
+Respond only with valid JSON.`
+          }
+        ],
+        temperature: 0.8,
+        max_tokens: 1000
+      })
+    });
+
+    const data = await response.json();
+
+    if (data.choices && data.choices[0]) {
+      const content = data.choices[0].message.content;
+      // Parse JSON from response
+      const jsonMatch = content.match(/\{[\s\S]*\}/);
+      if (jsonMatch) {
+        return JSON.parse(jsonMatch[0]);
+      }
+    }
+
+    throw new Error('Invalid OpenAI response');
+  } catch (error) {
+    console.error('OpenAI interpretation error:', error);
+    // Fallback to basic interpretation
+    return {
+      general_energy: `${card.name} brings energy of ${card.keywords.join(' and ')} into your day.`,
+      love_relationships: `In love, embrace the qualities of ${card.keywords[0]}.`,
+      career_finance: `For career matters, focus on ${card.keywords[1] || 'your strengths'}.`,
+      expert_advice: card.description
+    };
+  }
+}
+
+/**
+ * Generate card image using DALL-E
+ */
+async function generateCardImage(card) {
+  // If OpenAI API key is not configured, return null
+  if (!process.env.OPENAI_API_KEY) {
+    console.log('OpenAI API key not configured, skipping image generation');
+    return null;
+  }
+
+  try {
+    const prompt = `A beautiful, modern mystical Tarot card illustration of ${card.name}. ${card.image_description}. Style: Golden luxury aesthetic, soft lighting, detailed mystical artwork, elegant gold accents and borders. High quality digital art, clean composition.`;
+
+    const response = await fetch('https://api.openai.com/v1/images/generations', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${process.env.OPENAI_API_KEY}`
+      },
+      body: JSON.stringify({
+        model: 'dall-e-3',
+        prompt: prompt,
+        n: 1,
+        size: '1024x1792',
+        quality: 'standard'
+      })
+    });
+
+    const data = await response.json();
+
+    if (data.data && data.data[0]) {
+      return {
+        url: data.data[0].url,
+        prompt: prompt
+      };
+    }
+
+    return null;
+  } catch (error) {
+    console.error('DALL-E image generation error:', error);
+    return null;
+  }
+}
+
+// =============================================================================
+// USER API ROUTES
+// =============================================================================
+
+/**
+ * Register or update user
+ */
+app.post('/api/users/register', async (req, res) => {
+  try {
+    const { telegram_id, first_name, last_name, username } = req.body;
+
+    if (!telegram_id) {
+      return res.status(400).json({ error: 'telegram_id is required' });
+    }
+
+    const query = `
+      INSERT INTO users (telegram_id, first_name, last_name, telegram_username, last_active_at)
+      VALUES ($1, $2, $3, $4, NOW())
+      ON CONFLICT (telegram_id)
+      DO UPDATE SET
+        first_name = COALESCE($2, users.first_name),
+        last_name = COALESCE($3, users.last_name),
+        telegram_username = COALESCE($4, users.telegram_username),
+        last_active_at = NOW()
+      RETURNING *
+    `;
+
+    const result = await pool.query(query, [telegram_id, first_name, last_name, username]);
+    res.json({ user: result.rows[0] });
+  } catch (error) {
+    console.error('User registration error:', error);
+    res.status(500).json({ error: 'Failed to register user' });
+  }
+});
+
+/**
+ * Check if user has generation for today
+ */
+app.get('/api/generations/today/:telegramId', async (req, res) => {
+  try {
+    const { telegramId } = req.params;
+    const mskDate = getMoscowAstronomicalDate();
+
+    const query = `
+      SELECT g.*, u.first_name
+      FROM generations g
+      JOIN users u ON g.user_id = u.id
+      WHERE u.telegram_id = $1 AND g.msk_date = $2
+    `;
+
+    const result = await pool.query(query, [telegramId, mskDate]);
+
+    if (result.rows.length > 0) {
+      res.json({
+        generation: result.rows[0],
+        hasGeneration: true,
+        mskDate: mskDate
+      });
+    } else {
+      res.json({
+        generation: null,
+        hasGeneration: false,
+        mskDate: mskDate
+      });
+    }
+  } catch (error) {
+    console.error('Check generation error:', error);
+    res.status(500).json({ error: 'Failed to check generation' });
+  }
+});
+
+/**
+ * Generate daily card
+ */
+app.post('/api/generations/generate', async (req, res) => {
+  try {
+    const { telegram_id } = req.body;
+
+    if (!telegram_id) {
+      return res.status(400).json({ error: 'telegram_id is required' });
+    }
+
+    const mskDate = getMoscowAstronomicalDate();
+
+    // Get user
+    const userResult = await pool.query(
+      'SELECT * FROM users WHERE telegram_id = $1',
+      [telegram_id]
+    );
+
+    if (userResult.rows.length === 0) {
+      return res.status(404).json({ error: 'User not found. Please register first.' });
+    }
+
+    const user = userResult.rows[0];
+
+    // Check if already generated today
+    const existingResult = await pool.query(
+      'SELECT * FROM generations WHERE user_id = $1 AND msk_date = $2',
+      [user.id, mskDate]
+    );
+
+    if (existingResult.rows.length > 0) {
+      return res.status(400).json({
+        error: 'You have already received your card for today',
+        generation: existingResult.rows[0]
+      });
+    }
+
+    // Select random card
+    const cardResult = await pool.query(
+      'SELECT * FROM tarot_cards ORDER BY RANDOM() LIMIT 1'
+    );
+
+    if (cardResult.rows.length === 0) {
+      return res.status(500).json({ error: 'No tarot cards found in database' });
+    }
+
+    const card = cardResult.rows[0];
+
+    // Get expert context
+    const contextResult = await pool.query(
+      'SELECT content_text FROM expert_context WHERE is_active = true ORDER BY priority DESC LIMIT 5'
+    );
+
+    const expertContext = contextResult.rows.map(r => r.content_text).join('\n\n');
+    const hasExpertContext = contextResult.rows.length > 0;
+
+    // Generate interpretation
+    const interpretation = await generateInterpretation(card, expertContext);
+
+    // Generate image (optional)
+    const imageData = await generateCardImage(card);
+
+    // Save generation
+    const insertQuery = `
+      INSERT INTO generations (
+        user_id, card_name, card_number, card_arcana, card_suit,
+        image_url, image_prompt, text_content, expert_context_used,
+        generation_model, image_model, msk_date
+      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)
+      RETURNING *
+    `;
+
+    const insertResult = await pool.query(insertQuery, [
+      user.id,
+      card.name_ru || card.name,
+      card.number,
+      card.arcana,
+      card.suit,
+      imageData?.url || null,
+      imageData?.prompt || null,
+      JSON.stringify(interpretation),
+      hasExpertContext,
+      process.env.OPENAI_MODEL || 'gpt-4-turbo-preview',
+      imageData ? 'dall-e-3' : null,
+      mskDate
+    ]);
+
+    // Update user's total generations
+    await pool.query(
+      'UPDATE users SET total_generations = total_generations + 1 WHERE id = $1',
+      [user.id]
+    );
+
+    res.json({
+      generation: insertResult.rows[0],
+      card: {
+        name: card.name,
+        name_ru: card.name_ru,
+        arcana: card.arcana,
+        suit: card.suit
+      }
+    });
+  } catch (error) {
+    console.error('Generation error:', error);
+    res.status(500).json({ error: 'Failed to generate card' });
+  }
+});
+
+/**
+ * Track share
+ */
+app.post('/api/generations/share', async (req, res) => {
+  try {
+    const { generation_id } = req.body;
+
+    await pool.query(
+      'UPDATE generations SET times_shared = times_shared + 1 WHERE id = $1',
+      [generation_id]
+    );
+
+    res.json({ success: true });
+  } catch (error) {
+    console.error('Share tracking error:', error);
+    res.status(500).json({ error: 'Failed to track share' });
+  }
+});
+
+// =============================================================================
+// ADMIN API ROUTES
+// =============================================================================
+
+/**
+ * Check if user is admin by Telegram ID
+ */
+app.get('/api/admin/check/:telegramId', (req, res) => {
+  const telegramId = parseInt(req.params.telegramId);
+  const isAdmin = ADMIN_TELEGRAM_IDS.includes(telegramId);
+  res.json({ isAdmin });
+});
+
+/**
+ * Admin login
+ */
 app.post('/api/admin/login', async (req, res) => {
   try {
     const { username, password } = req.body;
-    
-    // В реальном приложении пароли должны быть захешированы в базе
+
+    // Check against environment variables
     if (username === process.env.ADMIN_USERNAME && password === process.env.ADMIN_PASSWORD) {
       const token = jwt.sign(
         { username, role: 'admin' },
         process.env.JWT_SECRET || 'your-secret-key',
         { expiresIn: '24h' }
       );
-      
+
       res.json({ token });
     } else {
-      res.status(401).json({ error: 'Неверные учетные данные' });
+      res.status(401).json({ error: 'Invalid credentials' });
     }
   } catch (error) {
-    console.error('Ошибка при авторизации:', error);
-    res.status(500).json({ error: 'Ошибка сервера' });
+    console.error('Admin login error:', error);
+    res.status(500).json({ error: 'Login failed' });
   }
 });
 
-// Добавление нового таролога (только для админов)
-app.post('/api/admin/tarot-readers', checkAdmin, async (req, res) => {
+/**
+ * Verify admin token
+ */
+app.get('/api/admin/verify', authenticateToken, (req, res) => {
+  res.json({ valid: true, admin: req.admin });
+});
+
+/**
+ * Get statistics
+ */
+app.get('/api/admin/statistics', authenticateToken, async (req, res) => {
   try {
-    const {
-      name,
-      description,
-      specialization,
-      price_range,
-      telegram_username,
-      telegram_id,
-      photo_url,
-      courses_completed,
-      is_featured
-    } = req.body;
-    
-    const insertQuery = `
-      INSERT INTO tarot_readers (
-        name, description, specialization, price_range,
-        telegram_username, telegram_id, photo_url,
-        courses_completed, is_featured, is_active
-      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, true)
-      RETURNING *
+    const mskDate = getMoscowAstronomicalDate();
+
+    const statsQuery = `
+      SELECT
+        (SELECT COUNT(*) FROM users) as total_users,
+        (SELECT COUNT(*) FROM generations) as total_generations,
+        (SELECT COUNT(*) FROM generations WHERE msk_date = $1) as today_generations,
+        (SELECT COALESCE(SUM(times_shared), 0) FROM generations) as total_shares
     `;
-    
-    const result = await pool.query(insertQuery, [
-      name, description, specialization, price_range,
-      telegram_username, telegram_id, photo_url,
-      courses_completed, is_featured || false
-    ]);
-    
-    res.json(result.rows[0]);
-  } catch (error) {
-    console.error('Ошибка при добавлении таролога:', error);
-    res.status(500).json({ error: 'Не удалось добавить таролога' });
-  }
-});
 
-// Получение статистики для админ-панели
-app.get('/api/admin/statistics', checkAdmin, async (req, res) => {
-  try {
-    const stats = await pool.query(`
-      SELECT 
-        (SELECT COUNT(*) FROM tarot_readers WHERE is_active = true) as total_readers,
-        (SELECT COUNT(*) FROM consultations) as total_consultations,
-        (SELECT COUNT(*) FROM consultations WHERE created_at > NOW() - INTERVAL '7 days') as weekly_consultations,
-        (SELECT COUNT(*) FROM reviews) as total_reviews,
-        (SELECT AVG(rating) FROM reviews) as average_rating
-    `);
-    
-    const topReaders = await pool.query(`
-      SELECT 
-        tr.name,
-        COUNT(c.id) as consultations_count,
-        AVG(r.rating) as average_rating
-      FROM tarot_readers tr
-      LEFT JOIN consultations c ON tr.id = c.tarot_reader_id
-      LEFT JOIN reviews r ON c.id = r.consultation_id
-      GROUP BY tr.id
-      ORDER BY consultations_count DESC
+    const topCardsQuery = `
+      SELECT card_name, COUNT(*) as count
+      FROM generations
+      WHERE msk_date = $1
+      GROUP BY card_name
+      ORDER BY count DESC
       LIMIT 5
-    `);
-    
+    `;
+
+    const [statsResult, topCardsResult] = await Promise.all([
+      pool.query(statsQuery, [mskDate]),
+      pool.query(topCardsQuery, [mskDate])
+    ]);
+
     res.json({
-      general: stats.rows[0],
-      top_readers: topReaders.rows
+      ...statsResult.rows[0],
+      top_cards: topCardsResult.rows
     });
   } catch (error) {
-    console.error('Ошибка при получении статистики:', error);
-    res.status(500).json({ error: 'Не удалось получить статистику' });
+    console.error('Statistics error:', error);
+    res.status(500).json({ error: 'Failed to get statistics' });
   }
 });
 
-// ========== ЗАПУСК СЕРВЕРА ==========
+/**
+ * Get all users
+ */
+app.get('/api/admin/users', authenticateToken, async (req, res) => {
+  try {
+    const result = await pool.query(`
+      SELECT * FROM users
+      ORDER BY created_at DESC
+      LIMIT 100
+    `);
+    res.json(result.rows);
+  } catch (error) {
+    console.error('Get users error:', error);
+    res.status(500).json({ error: 'Failed to get users' });
+  }
+});
+
+/**
+ * Get all generations
+ */
+app.get('/api/admin/generations', authenticateToken, async (req, res) => {
+  try {
+    const result = await pool.query(`
+      SELECT g.*, u.first_name, u.telegram_id
+      FROM generations g
+      JOIN users u ON g.user_id = u.id
+      ORDER BY g.date_generated DESC
+      LIMIT 100
+    `);
+    res.json(result.rows);
+  } catch (error) {
+    console.error('Get generations error:', error);
+    res.status(500).json({ error: 'Failed to get generations' });
+  }
+});
+
+/**
+ * Update generation
+ */
+app.put('/api/admin/generations/:id', authenticateToken, async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { text_content, image_url } = req.body;
+
+    const result = await pool.query(`
+      UPDATE generations
+      SET
+        text_content = $1,
+        image_url = COALESCE($2, image_url),
+        is_edited = true,
+        edited_at = NOW(),
+        edited_by = $3
+      WHERE id = $4
+      RETURNING *
+    `, [JSON.stringify(text_content), image_url, req.admin.username, id]);
+
+    if (result.rows.length === 0) {
+      return res.status(404).json({ error: 'Generation not found' });
+    }
+
+    res.json(result.rows[0]);
+  } catch (error) {
+    console.error('Update generation error:', error);
+    res.status(500).json({ error: 'Failed to update generation' });
+  }
+});
+
+/**
+ * Get expert contexts
+ */
+app.get('/api/admin/expert-context', authenticateToken, async (req, res) => {
+  try {
+    const result = await pool.query(`
+      SELECT * FROM expert_context
+      ORDER BY priority DESC, created_at DESC
+    `);
+    res.json(result.rows);
+  } catch (error) {
+    console.error('Get expert context error:', error);
+    res.status(500).json({ error: 'Failed to get expert context' });
+  }
+});
+
+/**
+ * Add expert context
+ */
+app.post('/api/admin/expert-context', authenticateToken, async (req, res) => {
+  try {
+    const { title, content_text, category, source_url } = req.body;
+
+    const result = await pool.query(`
+      INSERT INTO expert_context (title, content_text, category, source_url, uploaded_by)
+      VALUES ($1, $2, $3, $4, $5)
+      RETURNING *
+    `, [title, content_text, category || 'general', source_url, req.admin.username]);
+
+    res.json(result.rows[0]);
+  } catch (error) {
+    console.error('Add expert context error:', error);
+    res.status(500).json({ error: 'Failed to add expert context' });
+  }
+});
+
+/**
+ * Delete expert context
+ */
+app.delete('/api/admin/expert-context/:id', authenticateToken, async (req, res) => {
+  try {
+    const { id } = req.params;
+
+    await pool.query('DELETE FROM expert_context WHERE id = $1', [id]);
+    res.json({ success: true });
+  } catch (error) {
+    console.error('Delete expert context error:', error);
+    res.status(500).json({ error: 'Failed to delete expert context' });
+  }
+});
+
+// =============================================================================
+// TELEGRAM WEBHOOK (optional)
+// =============================================================================
+
+app.post('/api/telegram/webhook', async (req, res) => {
+  // Handle Telegram webhook updates if needed
+  res.json({ ok: true });
+});
+
+// =============================================================================
+// HEALTH CHECK
+// =============================================================================
+
+app.get('/api/health', (req, res) => {
+  res.json({
+    status: 'ok',
+    timestamp: new Date().toISOString(),
+    mskDate: getMoscowAstronomicalDate()
+  });
+});
+
+// =============================================================================
+// SERVE FRONTEND
+// =============================================================================
+
+app.get('*', (req, res) => {
+  res.sendFile(path.join(__dirname, 'public', 'index.html'));
+});
+
+// =============================================================================
+// START SERVER
+// =============================================================================
+
 app.listen(PORT, () => {
-  console.log(`🚀 Сервер запущен на порту ${PORT}`);
-  console.log(`📱 Telegram Mini App готово к работе!`);
+  console.log(`Server running on port ${PORT}`);
+  console.log(`Current Moscow astronomical date: ${getMoscowAstronomicalDate()}`);
+  console.log(`Admin IDs configured: ${ADMIN_TELEGRAM_IDS.length}`);
 });

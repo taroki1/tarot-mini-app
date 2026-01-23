@@ -1,181 +1,722 @@
 /* public/src/App.css */
-/* Основные стили для всего приложения - создаем магическую атмосферу таро */
+/* Tarot Daily Card - Light Gold Luxury Theme */
+/* Modern, Bright, Mystical aesthetic */
 
-/* Цветовая палитра приложения - фиолетовые оттенки для мистической атмосферы */
+/* ==============================================
+   COLOR PALETTE - Light Gold Luxury
+   ============================================== */
 :root {
-  --primary-color: #6B46C1;      /* Глубокий фиолетовый - основной цвет */
-  --primary-light: #9061F9;      /* Светло-фиолетовый для акцентов */
-  --primary-dark: #4C1D95;       /* Темно-фиолетовый для теней */
-  --secondary-color: #EC4899;    /* Розовый для кнопок призыва к действию */
-  --background: #FAF5FF;          /* Очень светлый фиолетовый фон */
-  --surface: #FFFFFF;             /* Белый для карточек */
-  --text-primary: #1F2937;        /* Темный текст для читабельности */
-  --text-secondary: #6B7280;      /* Серый для второстепенного текста */
-  --success: #10B981;             /* Зеленый для успешных действий */
-  --error: #EF4444;               /* Красный для ошибок */
-  --warning: #F59E0B;             /* Оранжевый для предупреждений */
-  --border: #E5E7EB;              /* Светло-серый для границ */
-  --shadow: rgba(107, 70, 193, 0.1); /* Фиолетовая тень для глубины */
+  /* Primary Gold Tones */
+  --gold-primary: #C9A227;        /* Rich gold */
+  --gold-light: #E8D48B;          /* Soft gold */
+  --gold-dark: #9A7B0A;           /* Deep gold */
+  --gold-shimmer: #F4E4BA;        /* Light shimmer */
+
+  /* Background Tones - Warm Cream */
+  --bg-primary: #FDF8F0;          /* Warm cream background */
+  --bg-secondary: #FFFBF5;        /* Lighter cream */
+  --bg-card: #FFFFFF;             /* Pure white for cards */
+  --bg-gradient-start: #FDF8F0;
+  --bg-gradient-end: #F5EDE0;
+
+  /* Text Colors */
+  --text-primary: #2D2A26;        /* Warm dark brown */
+  --text-secondary: #6B6560;      /* Muted brown */
+  --text-gold: #8B6914;           /* Gold text */
+  --text-light: #FFFFFF;
+
+  /* Accent Colors */
+  --accent-rose: #C77D9E;         /* Soft rose for love */
+  --accent-sage: #8BA888;         /* Sage for career */
+  --accent-purple: #9B8AC4;       /* Mystical purple */
+
+  /* UI Elements */
+  --border-light: rgba(201, 162, 39, 0.2);
+  --border-gold: rgba(201, 162, 39, 0.4);
+  --shadow-gold: rgba(201, 162, 39, 0.15);
+  --shadow-soft: rgba(45, 42, 38, 0.08);
+
+  /* Gradients */
+  --gradient-gold: linear-gradient(135deg, #C9A227 0%, #E8D48B 50%, #C9A227 100%);
+  --gradient-card-back: linear-gradient(145deg, #1a1a2e 0%, #2d2d44 50%, #1a1a2e 100%);
+  --gradient-mystical: linear-gradient(180deg, #F4E4BA 0%, #C9A227 100%);
 }
 
-/* Сброс стандартных стилей браузера для единообразия */
+/* ==============================================
+   BASE STYLES
+   ============================================== */
 * {
   margin: 0;
   padding: 0;
   box-sizing: border-box;
 }
 
-/* Основные стили для body - задаем общий тон приложения */
 body {
-  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
-  background: var(--background);
+  font-family: 'SF Pro Display', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  background: linear-gradient(135deg, var(--bg-gradient-start), var(--bg-gradient-end));
   color: var(--text-primary);
   line-height: 1.6;
+  min-height: 100vh;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
 }
 
-/* Контейнер приложения - ограничиваем максимальную ширину для читабельности */
+/* ==============================================
+   APP CONTAINER
+   ============================================== */
 .app {
-  max-width: 600px;
+  max-width: 480px;
   margin: 0 auto;
   min-height: 100vh;
-  background: var(--surface);
+  background: var(--bg-primary);
+  position: relative;
+  overflow-x: hidden;
 }
 
-/* Шапка приложения с градиентом для визуального интереса */
+/* ==============================================
+   HEADER - Elegant Gold Theme
+   ============================================== */
 .app-header {
-  background: linear-gradient(135deg, var(--primary-color) 0%, var(--primary-light) 100%);
-  color: white;
-  padding: 1.5rem;
+  background: var(--gradient-gold);
+  color: var(--text-primary);
+  padding: 1.5rem 1.25rem;
   text-align: center;
-  box-shadow: 0 4px 6px rgba(107, 70, 193, 0.2);
+  position: relative;
+  overflow: hidden;
+}
+
+.app-header::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: url("data:image/svg+xml,%3Csvg width='60' height='60' viewBox='0 0 60 60' xmlns='http://www.w3.org/2000/svg'%3E%3Cg fill='none' fill-rule='evenodd'%3E%3Cg fill='%23ffffff' fill-opacity='0.1'%3E%3Cpath d='M30 30l15-15v30l-15-15zM30 30l-15 15V15l15 15z'/%3E%3C/g%3E%3C/g%3E%3C/svg%3E");
+  opacity: 0.3;
 }
 
 .app-header h1 {
   font-size: 1.5rem;
-  font-weight: 600;
-  margin-bottom: 0.5rem;
-  text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.1);
+  font-weight: 700;
+  margin-bottom: 0.25rem;
+  position: relative;
+  text-shadow: 0 1px 2px rgba(255, 255, 255, 0.3);
+  letter-spacing: 0.5px;
 }
 
 .welcome-text {
-  font-size: 0.9rem;
-  opacity: 0.95;
+  font-size: 1rem;
+  font-weight: 500;
+  position: relative;
+  opacity: 0.9;
 }
 
-/* Навигационные вкладки - делаем их интуитивно понятными */
-.navigation-tabs {
+/* ==============================================
+   MAIN CONTENT AREA
+   ============================================== */
+.app-content {
+  padding: 1.5rem 1rem;
+  min-height: calc(100vh - 180px);
+}
+
+/* ==============================================
+   DAILY CARD CONTAINER
+   ============================================== */
+.daily-card-container {
   display: flex;
-  background: white;
-  border-bottom: 2px solid var(--border);
-  position: sticky;
-  top: 0;
-  z-index: 100;
+  flex-direction: column;
+  align-items: center;
+  padding: 1rem 0;
 }
 
-.tab-button {
-  flex: 1;
-  padding: 1rem;
-  background: none;
-  border: none;
-  font-size: 0.95rem;
+.card-intro {
+  text-align: center;
+  margin-bottom: 2rem;
+}
+
+.card-intro h2 {
+  font-size: 1.35rem;
+  font-weight: 600;
+  color: var(--text-primary);
+  margin-bottom: 0.5rem;
+}
+
+.card-intro p {
   color: var(--text-secondary);
+  font-size: 0.95rem;
+}
+
+/* ==============================================
+   3D FLIP CARD ANIMATION
+   ============================================== */
+.tarot-card-wrapper {
+  perspective: 1500px;
+  width: 240px;
+  height: 400px;
+  margin: 1.5rem auto;
+}
+
+.tarot-card {
+  width: 100%;
+  height: 100%;
+  position: relative;
+  transform-style: preserve-3d;
+  transition: transform 0.8s cubic-bezier(0.4, 0.0, 0.2, 1);
   cursor: pointer;
-  transition: all 0.3s ease;
+}
+
+.tarot-card.flipped {
+  transform: rotateY(180deg);
+}
+
+.tarot-card.flipping {
+  animation: cardFlip 0.8s cubic-bezier(0.4, 0.0, 0.2, 1) forwards;
+}
+
+@keyframes cardFlip {
+  0% {
+    transform: rotateY(0deg);
+  }
+  50% {
+    transform: rotateY(90deg) scale(1.05);
+  }
+  100% {
+    transform: rotateY(180deg);
+  }
+}
+
+.card-face {
+  position: absolute;
+  width: 100%;
+  height: 100%;
+  backface-visibility: hidden;
+  border-radius: 16px;
+  box-shadow:
+    0 10px 40px rgba(0, 0, 0, 0.15),
+    0 0 0 1px var(--border-gold),
+    inset 0 0 60px rgba(255, 255, 255, 0.1);
+  overflow: hidden;
+}
+
+/* Card Back - Mystical Dark Design */
+.card-back {
+  background: var(--gradient-card-back);
+  display: flex;
+  align-items: center;
+  justify-content: center;
   position: relative;
 }
 
-.tab-button:hover {
-  background: var(--background);
-}
-
-.tab-button.active {
-  color: var(--primary-color);
-  font-weight: 600;
-}
-
-/* Подчеркивание активной вкладки для ясности */
-.tab-button.active::after {
+.card-back::before {
   content: '';
   position: absolute;
-  bottom: -2px;
+  inset: 8px;
+  border: 2px solid var(--gold-primary);
+  border-radius: 12px;
+  opacity: 0.6;
+}
+
+.card-back::after {
+  content: '';
+  position: absolute;
+  width: 120px;
+  height: 120px;
+  background: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Ccircle cx='50' cy='50' r='45' fill='none' stroke='%23C9A227' stroke-width='1'/%3E%3Cpath d='M50 5 L60 40 L95 50 L60 60 L50 95 L40 60 L5 50 L40 40 Z' fill='none' stroke='%23C9A227' stroke-width='1'/%3E%3Ccircle cx='50' cy='50' r='20' fill='none' stroke='%23C9A227' stroke-width='1'/%3E%3C/svg%3E");
+  opacity: 0.7;
+  animation: rotateSymbol 20s linear infinite;
+}
+
+@keyframes rotateSymbol {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}
+
+.card-back-text {
+  position: absolute;
+  bottom: 20px;
+  font-size: 0.75rem;
+  color: var(--gold-light);
+  letter-spacing: 2px;
+  text-transform: uppercase;
+}
+
+/* Card Front - Revealed Card */
+.card-front {
+  transform: rotateY(180deg);
+  background: var(--bg-card);
+  display: flex;
+  flex-direction: column;
+}
+
+.card-front .card-image-container {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 12px;
+  background: linear-gradient(180deg, #FFFEF9 0%, #F8F4E8 100%);
+}
+
+.card-front .card-image {
+  max-width: 100%;
+  max-height: 100%;
+  object-fit: contain;
+  border-radius: 8px;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.1);
+}
+
+.card-front .card-name {
+  background: var(--gradient-gold);
+  color: var(--text-primary);
+  padding: 0.75rem;
+  text-align: center;
+  font-size: 1rem;
+  font-weight: 600;
+  letter-spacing: 0.5px;
+}
+
+/* ==============================================
+   GET CARD BUTTON
+   ============================================== */
+.get-card-button {
+  background: var(--gradient-gold);
+  color: var(--text-primary);
+  border: none;
+  padding: 1rem 2.5rem;
+  border-radius: 50px;
+  font-size: 1.1rem;
+  font-weight: 600;
+  cursor: pointer;
+  margin-top: 1.5rem;
+  box-shadow:
+    0 8px 30px var(--shadow-gold),
+    0 0 0 1px rgba(255, 255, 255, 0.3) inset;
+  transition: all 0.3s ease;
+  position: relative;
+  overflow: hidden;
+}
+
+.get-card-button::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: -100%;
+  width: 100%;
+  height: 100%;
+  background: linear-gradient(90deg, transparent, rgba(255,255,255,0.4), transparent);
+  transition: left 0.5s ease;
+}
+
+.get-card-button:hover::before {
+  left: 100%;
+}
+
+.get-card-button:hover {
+  transform: translateY(-3px);
+  box-shadow:
+    0 12px 40px var(--shadow-gold),
+    0 0 0 1px rgba(255, 255, 255, 0.4) inset;
+}
+
+.get-card-button:active {
+  transform: translateY(-1px);
+}
+
+.get-card-button:disabled {
+  opacity: 0.7;
+  cursor: not-allowed;
+  transform: none;
+}
+
+.get-card-button.loading {
+  pointer-events: none;
+}
+
+.button-spinner {
+  display: inline-block;
+  width: 20px;
+  height: 20px;
+  border: 2px solid rgba(45, 42, 38, 0.3);
+  border-top-color: var(--text-primary);
+  border-radius: 50%;
+  animation: spinner 0.8s linear infinite;
+  margin-right: 8px;
+  vertical-align: middle;
+}
+
+@keyframes spinner {
+  to { transform: rotate(360deg); }
+}
+
+/* ==============================================
+   INTERPRETATION SECTION
+   ============================================== */
+.interpretation-section {
+  margin-top: 2rem;
+  padding: 0 0.5rem;
+  animation: fadeInUp 0.5s ease forwards;
+}
+
+@keyframes fadeInUp {
+  from {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.interpretation-card {
+  background: var(--bg-card);
+  border-radius: 20px;
+  padding: 1.5rem;
+  margin-bottom: 1rem;
+  box-shadow:
+    0 4px 20px var(--shadow-soft),
+    0 0 0 1px var(--border-light);
+  position: relative;
+  overflow: hidden;
+}
+
+.interpretation-card::before {
+  content: '';
+  position: absolute;
+  top: 0;
   left: 0;
   right: 0;
-  height: 2px;
-  background: var(--primary-color);
+  height: 4px;
+  background: var(--gradient-gold);
 }
 
-/* Основной контент - добавляем отступы для дыхания */
-.app-content {
-  padding: 1rem;
-  min-height: calc(100vh - 200px);
+.interpretation-card.general::before {
+  background: var(--gradient-mystical);
 }
 
-/* Футер - информация о школе */
-.app-footer {
-  background: var(--primary-dark);
-  color: white;
-  text-align: center;
-  padding: 1.5rem;
+.interpretation-card.love::before {
+  background: linear-gradient(90deg, #C77D9E, #E8B4CC);
+}
+
+.interpretation-card.career::before {
+  background: linear-gradient(90deg, #8BA888, #B8D4B5);
+}
+
+.interpretation-card.advice::before {
+  background: linear-gradient(90deg, #9B8AC4, #C9BEE8);
+}
+
+.interpretation-card h3 {
+  font-size: 1rem;
+  font-weight: 600;
+  color: var(--text-gold);
+  margin-bottom: 0.75rem;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.interpretation-card h3 .icon {
+  font-size: 1.25rem;
+}
+
+.interpretation-card p {
+  color: var(--text-primary);
+  font-size: 0.95rem;
+  line-height: 1.7;
+}
+
+/* ==============================================
+   SHARE BUTTON
+   ============================================== */
+.share-section {
   margin-top: 2rem;
+  text-align: center;
 }
 
-.footer-tagline {
-  font-size: 0.85rem;
-  opacity: 0.9;
-  margin-top: 0.5rem;
+.share-button {
+  background: transparent;
+  border: 2px solid var(--gold-primary);
+  color: var(--gold-dark);
+  padding: 0.875rem 2rem;
+  border-radius: 50px;
+  font-size: 1rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
 }
 
-/* Анимация загрузки - создаем плавное вращение */
+.share-button:hover {
+  background: var(--gold-shimmer);
+  border-color: var(--gold-dark);
+}
+
+.share-button .icon {
+  font-size: 1.25rem;
+}
+
+/* ==============================================
+   ALREADY GENERATED STATE
+   ============================================== */
+.already-generated-message {
+  text-align: center;
+  padding: 1rem;
+  background: var(--gold-shimmer);
+  border-radius: 12px;
+  margin-bottom: 1.5rem;
+}
+
+.already-generated-message p {
+  color: var(--text-gold);
+  font-size: 0.9rem;
+}
+
+.reset-time {
+  font-weight: 600;
+  color: var(--gold-dark);
+}
+
+/* ==============================================
+   LOADING STATE
+   ============================================== */
 .loading-container {
   display: flex;
   flex-direction: column;
   align-items: center;
   justify-content: center;
   min-height: 300px;
+  padding: 2rem;
+}
+
+.loading-card {
+  width: 200px;
+  height: 320px;
+  background: var(--gradient-card-back);
+  border-radius: 16px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 10px 40px rgba(0, 0, 0, 0.2);
+  animation: pulse 1.5s ease-in-out infinite;
+}
+
+@keyframes pulse {
+  0%, 100% { transform: scale(1); opacity: 1; }
+  50% { transform: scale(1.02); opacity: 0.9; }
+}
+
+.loading-text {
+  margin-top: 1.5rem;
   color: var(--text-secondary);
+  font-size: 0.95rem;
+  text-align: center;
 }
 
-.loading-spinner {
-  font-size: 2rem;
-  animation: spin 1s linear infinite;
+.loading-text span {
+  display: block;
+  color: var(--gold-dark);
+  font-weight: 500;
+  margin-top: 0.5rem;
 }
 
-@keyframes spin {
-  from { transform: rotate(0deg); }
-  to { transform: rotate(360deg); }
+/* ==============================================
+   FOOTER
+   ============================================== */
+.app-footer {
+  background: linear-gradient(180deg, transparent, var(--gold-shimmer));
+  text-align: center;
+  padding: 1.5rem;
+  margin-top: auto;
 }
 
-/* Кнопки - делаем их заметными и приятными для нажатия */
-button {
-  font-family: inherit;
+.app-footer p {
+  color: var(--text-secondary);
+  font-size: 0.85rem;
+}
+
+.footer-tagline {
+  color: var(--gold-dark);
+  font-weight: 500;
+  margin-top: 0.25rem;
+}
+
+/* ==============================================
+   ADMIN PANEL STYLES
+   ============================================== */
+.admin-panel {
+  padding: 1rem;
+}
+
+.admin-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 1.5rem;
+}
+
+.admin-header h2 {
+  font-size: 1.25rem;
+  color: var(--text-primary);
+}
+
+.admin-tabs {
+  display: flex;
+  gap: 0.5rem;
+  margin-bottom: 1.5rem;
+  overflow-x: auto;
+  padding-bottom: 0.5rem;
+}
+
+.admin-tab {
+  background: var(--bg-secondary);
+  border: 1px solid var(--border-light);
+  padding: 0.625rem 1.25rem;
+  border-radius: 25px;
+  font-size: 0.875rem;
+  color: var(--text-secondary);
   cursor: pointer;
-  transition: all 0.3s ease;
+  white-space: nowrap;
+  transition: all 0.2s ease;
 }
 
-.primary-button, .booking-button, .confirm-button {
-  background: linear-gradient(135deg, var(--primary-color), var(--primary-light));
-  color: white;
-  border: none;
-  padding: 0.75rem 1.5rem;
+.admin-tab.active {
+  background: var(--gradient-gold);
+  border-color: var(--gold-primary);
+  color: var(--text-primary);
+  font-weight: 500;
+}
+
+.admin-section {
+  background: var(--bg-card);
+  border-radius: 16px;
+  padding: 1.25rem;
+  box-shadow: 0 2px 12px var(--shadow-soft);
+}
+
+.admin-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.875rem;
+}
+
+.admin-table th,
+.admin-table td {
+  padding: 0.75rem 0.5rem;
+  text-align: left;
+  border-bottom: 1px solid var(--border-light);
+}
+
+.admin-table th {
+  color: var(--text-secondary);
+  font-weight: 500;
+  font-size: 0.8rem;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.admin-table tr:hover {
+  background: var(--bg-secondary);
+}
+
+.admin-stat-card {
+  background: var(--bg-card);
+  border-radius: 12px;
+  padding: 1rem;
+  text-align: center;
+  box-shadow: 0 2px 8px var(--shadow-soft);
+}
+
+.admin-stat-card .value {
+  font-size: 2rem;
+  font-weight: 700;
+  color: var(--gold-dark);
+}
+
+.admin-stat-card .label {
+  font-size: 0.85rem;
+  color: var(--text-secondary);
+  margin-top: 0.25rem;
+}
+
+.admin-stats-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 1rem;
+  margin-bottom: 1.5rem;
+}
+
+/* Login Form */
+.login-form {
+  max-width: 360px;
+  margin: 2rem auto;
+  padding: 2rem;
+  background: var(--bg-card);
+  border-radius: 20px;
+  box-shadow: 0 8px 30px var(--shadow-soft);
+}
+
+.login-form h2 {
+  text-align: center;
+  margin-bottom: 1.5rem;
+  color: var(--text-primary);
+}
+
+.form-group {
+  margin-bottom: 1.25rem;
+}
+
+.form-group label {
+  display: block;
+  margin-bottom: 0.5rem;
+  font-weight: 500;
+  color: var(--text-primary);
+  font-size: 0.9rem;
+}
+
+input, textarea, select {
+  width: 100%;
+  padding: 0.875rem 1rem;
+  border: 2px solid var(--border-light);
   border-radius: 12px;
   font-size: 1rem;
-  font-weight: 500;
-  box-shadow: 0 4px 6px var(--shadow);
-  transition: transform 0.2s ease, box-shadow 0.2s ease;
+  font-family: inherit;
+  transition: all 0.2s ease;
+  background: var(--bg-secondary);
 }
 
-.primary-button:hover, .booking-button:hover, .confirm-button:hover {
+input:focus, textarea:focus, select:focus {
+  outline: none;
+  border-color: var(--gold-primary);
+  background: var(--bg-card);
+  box-shadow: 0 0 0 3px var(--shadow-gold);
+}
+
+.login-button, .submit-button {
+  width: 100%;
+  background: var(--gradient-gold);
+  color: var(--text-primary);
+  border: none;
+  padding: 1rem;
+  border-radius: 12px;
+  font-size: 1rem;
+  font-weight: 600;
+  cursor: pointer;
+  margin-top: 0.5rem;
+  transition: all 0.2s ease;
+}
+
+.login-button:hover, .submit-button:hover {
   transform: translateY(-2px);
-  box-shadow: 0 6px 12px var(--shadow);
+  box-shadow: 0 6px 20px var(--shadow-gold);
 }
 
-.primary-button:active, .booking-button:active {
-  transform: translateY(0);
-}
-
-/* Модальные окна - создаем фокус на важном контенте */
+/* ==============================================
+   MODAL STYLES
+   ============================================== */
 .modal-overlay {
   position: fixed;
   top: 0;
@@ -187,18 +728,41 @@ button {
   align-items: center;
   justify-content: center;
   z-index: 1000;
-  animation: fadeIn 0.3s ease;
+  padding: 1rem;
+  animation: fadeIn 0.2s ease;
 }
 
 .modal-content {
-  background: white;
+  background: var(--bg-card);
   border-radius: 20px;
-  padding: 2rem;
+  padding: 1.5rem;
   max-width: 90%;
+  width: 400px;
   max-height: 90vh;
   overflow-y: auto;
   box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
   animation: slideUp 0.3s ease;
+}
+
+.modal-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 1rem;
+}
+
+.modal-header h3 {
+  font-size: 1.1rem;
+  color: var(--text-primary);
+}
+
+.modal-close {
+  background: none;
+  border: none;
+  font-size: 1.5rem;
+  color: var(--text-secondary);
+  cursor: pointer;
+  padding: 0.25rem;
 }
 
 @keyframes fadeIn {
@@ -209,7 +773,7 @@ button {
 @keyframes slideUp {
   from {
     opacity: 0;
-    transform: translateY(20px);
+    transform: translateY(30px);
   }
   to {
     opacity: 1;
@@ -217,125 +781,143 @@ button {
   }
 }
 
-/* Карточки - универсальный стиль для всех карточек в приложении */
-.card {
-  background: white;
-  border-radius: 16px;
-  padding: 1.5rem;
-  box-shadow: 0 2px 8px var(--shadow);
-  transition: transform 0.2s ease, box-shadow 0.2s ease;
+/* ==============================================
+   ERROR & SUCCESS MESSAGES
+   ============================================== */
+.error-message {
+  background: #FEF2F2;
+  border: 1px solid #FECACA;
+  color: #DC2626;
+  padding: 0.875rem 1rem;
+  border-radius: 12px;
   margin-bottom: 1rem;
+  font-size: 0.9rem;
 }
 
-.card:hover {
-  transform: translateY(-4px);
-  box-shadow: 0 4px 16px var(--shadow);
+.success-message {
+  background: #F0FDF4;
+  border: 1px solid #BBF7D0;
+  color: #166534;
+  padding: 0.875rem 1rem;
+  border-radius: 12px;
+  margin-bottom: 1rem;
+  font-size: 0.9rem;
 }
 
-/* Формы - делаем ввод данных удобным */
-.form-group {
-  margin-bottom: 1.5rem;
-}
-
-.form-group label {
-  display: block;
-  margin-bottom: 0.5rem;
-  font-weight: 500;
-  color: var(--text-primary);
-}
-
-input, textarea, select {
-  width: 100%;
-  padding: 0.75rem;
-  border: 2px solid var(--border);
-  border-radius: 8px;
-  font-size: 1rem;
-  font-family: inherit;
-  transition: border-color 0.3s ease;
-}
-
-input:focus, textarea:focus, select:focus {
-  outline: none;
-  border-color: var(--primary-color);
-  box-shadow: 0 0 0 3px rgba(107, 70, 193, 0.1);
-}
-
-/* Бейджи и теги - для отображения категорий и статусов */
-.badge {
-  display: inline-block;
-  padding: 0.25rem 0.75rem;
-  background: var(--primary-light);
-  color: white;
-  border-radius: 20px;
-  font-size: 0.85rem;
-  font-weight: 500;
-  margin-right: 0.5rem;
-  margin-bottom: 0.5rem;
-}
-
-/* Адаптивность - обеспечиваем хороший вид на всех устройствах */
-@media (max-width: 480px) {
+/* ==============================================
+   RESPONSIVE ADJUSTMENTS
+   ============================================== */
+@media (max-width: 380px) {
   .app-header h1 {
     font-size: 1.25rem;
   }
-  
-  .modal-content {
-    padding: 1.5rem;
-    border-radius: 16px;
+
+  .tarot-card-wrapper {
+    width: 200px;
+    height: 340px;
   }
-  
-  .navigation-tabs {
-    font-size: 0.9rem;
+
+  .get-card-button {
+    padding: 0.875rem 2rem;
+    font-size: 1rem;
   }
-}
 
-/* Специальные эффекты для Telegram Mini App */
-.telegram-theme-bg {
-  background: var(--tg-theme-bg-color, var(--background));
-}
-
-.telegram-theme-text {
-  color: var(--tg-theme-text-color, var(--text-primary));
-}
-
-/* Анимация появления элементов при загрузке страницы */
-.fade-in {
-  animation: fadeInElement 0.5s ease forwards;
-}
-
-@keyframes fadeInElement {
-  from {
-    opacity: 0;
-    transform: translateY(10px);
-  }
-  to {
-    opacity: 1;
-    transform: translateY(0);
+  .interpretation-card {
+    padding: 1.25rem;
   }
 }
 
-/* Стиль для сообщений об ошибках */
-.error-message {
-  background: #FEE2E2;
-  border: 1px solid #FECACA;
-  color: #DC2626;
-  padding: 0.75rem 1rem;
-  border-radius: 8px;
-  margin-bottom: 1rem;
+/* ==============================================
+   NAVIGATION TABS
+   ============================================== */
+.navigation-tabs {
   display: flex;
-  align-items: center;
-  gap: 0.5rem;
+  background: var(--bg-card);
+  border-bottom: 1px solid var(--border-light);
+  position: sticky;
+  top: 0;
+  z-index: 100;
 }
 
-/* Стиль для сообщений об успехе */
-.success-message {
-  background: #D1FAE5;
-  border: 1px solid #A7F3D0;
-  color: #065F46;
-  padding: 0.75rem 1rem;
-  border-radius: 8px;
-  margin-bottom: 1rem;
-  display: flex;
-  align-items: center;
-  gap: 0.5rem;
+.tab-button {
+  flex: 1;
+  padding: 1rem;
+  background: none;
+  border: none;
+  font-size: 0.9rem;
+  color: var(--text-secondary);
+  cursor: pointer;
+  transition: all 0.2s ease;
+  position: relative;
+  font-weight: 500;
+}
+
+.tab-button:hover {
+  background: var(--bg-secondary);
+}
+
+.tab-button.active {
+  color: var(--gold-dark);
+}
+
+.tab-button.active::after {
+  content: '';
+  position: absolute;
+  bottom: 0;
+  left: 10%;
+  right: 10%;
+  height: 3px;
+  background: var(--gradient-gold);
+  border-radius: 3px 3px 0 0;
+}
+
+/* ==============================================
+   BADGES
+   ============================================== */
+.badge {
+  display: inline-block;
+  padding: 0.25rem 0.75rem;
+  background: var(--gold-shimmer);
+  color: var(--gold-dark);
+  border-radius: 20px;
+  font-size: 0.8rem;
+  font-weight: 500;
+}
+
+.badge.major {
+  background: linear-gradient(135deg, #E8D48B, #C9A227);
+  color: var(--text-primary);
+}
+
+.badge.minor {
+  background: var(--bg-secondary);
+  color: var(--text-secondary);
+}
+
+/* ==============================================
+   UTILITIES
+   ============================================== */
+.text-center { text-align: center; }
+.text-gold { color: var(--gold-dark); }
+.mt-1 { margin-top: 0.5rem; }
+.mt-2 { margin-top: 1rem; }
+.mb-1 { margin-bottom: 0.5rem; }
+.mb-2 { margin-bottom: 1rem; }
+
+/* Scrollbar styling */
+::-webkit-scrollbar {
+  width: 6px;
+}
+
+::-webkit-scrollbar-track {
+  background: var(--bg-secondary);
+}
+
+::-webkit-scrollbar-thumb {
+  background: var(--gold-light);
+  border-radius: 3px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: var(--gold-primary);
 }
