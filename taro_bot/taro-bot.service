@@ -1,0 +1,15 @@
+[Unit]
+Description=Taro Card Bot
+After=network.target
+
+[Service]
+Type=simple
+User=user
+WorkingDirectory=/home/user/taro_bot
+ExecStart=/home/user/taro_bot/venv/bin/python bot.py
+Restart=always
+RestartSec=10
+Environment=PYTHONUNBUFFERED=1
+
+[Install]
+WantedBy=multi-user.target
